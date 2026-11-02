@@ -5,6 +5,7 @@ import React, { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Platform,
   Pressable,
   StyleSheet,
@@ -53,18 +54,25 @@ function ERPApp() {
       ...lowStock.slice(0, 4).map((product) => `مخزون منخفض: ${product.name} — المتبقي ${product.quantity}`),
       ...pendingInvoices.slice(0, 4).map((invoice) => `فاتورة مستحقة: ${invoice.number} — ${invoice.customer}`),
     ];
-    Alert.alert('تنبيهات مدار', toEnglishDigits(notices.join('\n') || 'لا توجد تنبيهات جديدة حالياً.'));
+    Alert.alert('تنبيهات TAMM ERP', toEnglishDigits(notices.join('\n') || 'لا توجد تنبيهات جديدة حالياً.'));
   };
 
   if (!hydrated) {
     return (
       <View style={[appStyles.loading, { backgroundColor: colors.background, paddingTop: topInset }]}>
         <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
-        <View style={[appStyles.loadingMark, { backgroundColor: colors.primary }]}>
-          <Feather name="pie-chart" size={23} color={colors.primaryForeground} />
-        </View>
+        <Image
+          source={
+            colorScheme === 'dark'
+              ? require('../assets/images/tamm-logo-dark.png')
+              : require('../assets/images/tamm-logo-light.png')
+          }
+          style={appStyles.loadingLogo}
+          resizeMode="contain"
+          accessibilityLabel="شعار TAMM ERP"
+        />
         <ActivityIndicator color={colors.primary} />
-          <AppText style={[appStyles.loadingText, { color: colors.mutedForeground }]}>جارٍ تجهيز مساحة مدار</AppText>
+        <AppText style={[appStyles.loadingText, { color: colors.mutedForeground }]}>جارٍ تجهيز TAMM ERP</AppText>
       </View>
     );
   }
@@ -146,6 +154,6 @@ const appStyles = StyleSheet.create({
   tabIcon: { width: 38, height: 29, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   tabLabel: { fontSize: 10, textAlign: 'center', writingDirection: 'rtl' },
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 13 },
-  loadingMark: { width: 56, height: 56, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
+  loadingLogo: { width: 76, height: 64 },
   loadingText: { fontSize: 12, textAlign: 'center', writingDirection: 'rtl' },
 });

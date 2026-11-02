@@ -1,4 +1,4 @@
-/** Mizan Figma theme tokens adapted to Midad's Arabic-first mobile UI. */
+/** Mizan Figma theme tokens used by TAMM ERP's Arabic-first mobile UI. */
 const colors = {
   light: {
     text: '#0F1424',

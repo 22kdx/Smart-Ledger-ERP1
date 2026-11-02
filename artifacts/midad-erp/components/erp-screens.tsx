@@ -3,8 +3,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import React, { useMemo, useState } from 'react';
 import {
   Pressable,
+  Image,
   StyleSheet,
   TextInput,
+  useColorScheme,
   View,
 } from 'react-native';
 import { useColors } from '@/hooks/useColors';
@@ -63,10 +65,23 @@ function ScreenHeader({
   onBell?: () => void;
 }) {
   const colors = useColors();
+  const colorScheme = useColorScheme();
+  const logoSource =
+    colorScheme === 'dark'
+      ? require('../assets/images/tamm-logo-dark.png')
+      : require('../assets/images/tamm-logo-light.png');
   return (
     <View style={screenStyles.header}>
       <View style={screenStyles.headerCopy}>
-        <Text style={[screenStyles.eyebrow, { color: colors.primary }]}>{eyebrow}</Text>
+        <View style={screenStyles.brandEyebrow}>
+          <Image
+            source={logoSource}
+            style={screenStyles.brandLogo}
+            resizeMode="contain"
+            accessibilityLabel="شعار TAMM ERP"
+          />
+          <Text style={[screenStyles.eyebrow, { color: colors.primary }]}>{eyebrow}</Text>
+        </View>
         <Title>{title}</Title>
         {detail ? <BodyText muted>{detail}</BodyText> : null}
       </View>
@@ -162,7 +177,7 @@ export function DashboardScreen({
     <Page>
       <ScreenHeader
         eyebrow="مساحة عملك المالية"
-        title="مرحباً بك في مدار"
+        title="TAMM ERP"
         detail={data.companyName}
         onBell={onNotify}
       />
@@ -1049,6 +1064,8 @@ const screenStyles = StyleSheet.create({
     marginBottom: 2,
   },
   headerCopy: { flex: 1, gap: 5, alignItems: 'flex-start' },
+  brandEyebrow: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 30 },
+  brandLogo: { width: 34, height: 30 },
   eyebrow: { fontSize: 12, fontWeight: '700', textAlign: 'right', writingDirection: 'rtl' },
   brandMark: { width: 44, height: 44, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   balanceCard: { borderRadius: 24, padding: 21, gap: 24 },

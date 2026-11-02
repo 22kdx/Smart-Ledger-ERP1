@@ -1,13 +1,13 @@
 {
   "expo": {
-    "name": "مدار ERP",
+    "name": "TAMM ERP",
     "slug": "midad-erp",
     "version": "1.0.0",
     "orientation": "portrait",
     "splash": {
       "backgroundColor": "#F4F6FA"
     },
-    "icon": "./assets/images/midad-icon.png",
+    "icon": "./assets/images/tamm-app-icon.png",
     "scheme": "midad-erp",
     "userInterfaceStyle": "automatic",
     "ios": {
@@ -17,7 +17,7 @@
       "supportsRTL": true
     },
     "web": {
-      "favicon": "./assets/images/midad-icon.png",
+      "favicon": "./assets/images/tamm-app-icon.png",
       "output": "static"
     },
     "plugins": [

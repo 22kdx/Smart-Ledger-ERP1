@@ -1,4 +1,4 @@
-# مدار ERP
+# TAMM ERP
 
 تطبيق إدارة موارد أعمال باللغة العربية، يضم المبيعات والمخزون والمالية ويدعم الريال اليمني والسعودي والدولار الأمريكي.
 
@@ -40,6 +40,7 @@
 ## Architecture decisions
 
 - Business settings that can differ between companies (name, country, base/allowed currencies, taxes, exchange rates, base prices/price lists, fiscal year, and similar values) must be editable per company; sample defaults must never be silently treated as confirmed business policy.
+- اسم النظام والتطبيق هو TAMM ERP؛ اسم المنشأة قيمة مستقلة من إعدادات الشركة ولا يحل محل اسم النظام. استخدم الشعار الرسمي المرفق بنسختيه المناسبة للوضعين الفاتح والداكن.
 - All app network requests go through one API client. It reads the single `API_BASE_URL` value from a runtime-editable configuration file, changeable without rebuilding; screens must not contain server URLs or make direct requests.
 - The user's own server is the only permanent data source. Local storage is a cache/offline layer only, and unsynced changes must remain identifiable and protected until the server confirms them.
 - Keep the app and API portable for manual transfer to the user's VPS after the app is complete. Do not depend on Replit-only database, auth, secrets, file paths, or automatic deployment; do not publish without the user's explicit request.
@@ -47,7 +48,7 @@
 
 ## Product
 
-النسخة الحالية نموذج أولي لتطبيق جوال عربي RTL لإدارة الأعمال. تعرض واجهات للرئيسية والمبيعات والمخزون والمالية والمزيد، وتتضمن نماذج بيانات للفواتير والأصناف والحركات المالية والقيود والموظفين والعملاء والموردين. تفاصيل الحالة الراهنة، وما ينقص لتصبح البيانات مشتركة بين المستخدمين، موجودة في `.agents/PROJECT_STATUS.md`.
+النسخة الحالية من TAMM ERP نموذج أولي لتطبيق جوال عربي RTL لإدارة الأعمال. تعرض واجهات للرئيسية والمبيعات والمخزون والمالية والمزيد، وتتضمن نماذج بيانات للفواتير والأصناف والحركات المالية والقيود والموظفين والعملاء والموردين. تفاصيل الحالة الراهنة، وما ينقص لتصبح البيانات مشتركة بين المستخدمين، موجودة في `.agents/PROJECT_STATUS.md`.
 
 ## User preferences
 

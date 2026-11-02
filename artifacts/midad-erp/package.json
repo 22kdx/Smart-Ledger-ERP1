@@ -56,7 +56,6 @@
     "zod-validation-error": "^3.4.0"
   },
   "dependencies": {
-    "@clerk/expo": "^4.14.5",
     "@expo-google-fonts/tajawal": "^0.4.1",
     "expo-auth-session": "~58.0.16",
     "expo-crypto": "~58.0.7",

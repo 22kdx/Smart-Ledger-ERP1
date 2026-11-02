@@ -1,5 +1,6 @@
 export type CustomFetchOptions = RequestInit & {
   responseType?: "json" | "text" | "blob" | "auto";
+  skipAuth?: boolean;
 };
 
 export type ErrorType<T = unknown> = ApiError<T>;
@@ -75,7 +76,12 @@ function applyBaseUrl(input: RequestInfo | URL): RequestInfo | URL {
   // Only prepend to relative paths (starting with /)
   if (!url.startsWith("/")) return input;
 
-  const absolute = `${_baseUrl}${url}`;
+  const baseUrl = _baseUrl.replace(/\/+$/, "");
+  const basePath = new URL(baseUrl).pathname.replace(/\/+$/, "");
+  const alreadyIncludesApiPrefix =
+    basePath.endsWith("/api") && (url === "/api" || url.startsWith("/api/"));
+  const pathToAppend = alreadyIncludesApiPrefix ? url.slice(4) || "/" : url;
+  const absolute = `${baseUrl}${pathToAppend}`;
   if (typeof input === "string") return absolute;
   if (isUrl(input)) return new URL(absolute);
   return new Request(absolute, input as Request);
@@ -340,7 +346,12 @@ export async function customFetch<T = unknown>(
   }
 
   input = applyBaseUrl(input);
-  const { responseType = "auto", headers: headersInit, ...init } = options;
+  const {
+    responseType = "auto",
+    headers: headersInit,
+    skipAuth = false,
+    ...init
+  } = options;
 
   const method = resolveMethod(input, init.method);
 
@@ -364,7 +375,7 @@ export async function customFetch<T = unknown>(
 
   // Attach bearer token when an auth getter is configured and no
   // Authorization header has been explicitly provided.
-  if (_authTokenGetter && !headers.has("authorization")) {
+  if (!skipAuth && _authTokenGetter && !headers.has("authorization")) {
     const token = await _authTokenGetter();
     if (token) {
       headers.set("authorization", `Bearer ${token}`);

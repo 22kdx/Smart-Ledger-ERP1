@@ -21,6 +21,7 @@ import {
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { initializeApiClient } from '@/components/api-client';
+import { configureAuthClient } from '@/components/auth-client';
 
 I18nManager.allowRTL(true);
 if (Platform.OS !== 'web') {
@@ -61,6 +62,7 @@ export default function RootLayout() {
   }, [fontsLoaded, fontError]);
 
   useEffect(() => {
+    configureAuthClient();
     void initializeApiClient();
   }, []);
 

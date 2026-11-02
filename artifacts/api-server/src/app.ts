@@ -6,6 +6,15 @@ import { logger } from "./lib/logger";
 
 const app: Express = express();
 
+const proxyHopsSetting = process.env.TRUST_PROXY_HOPS;
+if (proxyHopsSetting !== undefined) {
+  const proxyHops = Number(proxyHopsSetting);
+  if (!Number.isInteger(proxyHops) || proxyHops < 0) {
+    throw new Error("TRUST_PROXY_HOPS must be a non-negative integer.");
+  }
+  app.set("trust proxy", proxyHops);
+}
+
 app.use(
   pinoHttp({
     logger,

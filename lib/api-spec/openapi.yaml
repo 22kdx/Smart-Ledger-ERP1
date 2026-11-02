@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Internal user authentication
   - name: companies
     description: Company workspace operations
   - name: accounting
@@ -28,11 +30,133 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /auth/register:
+    post:
+      operationId: registerAuthUser
+      tags: [auth]
+      summary: Register an account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthRegisterInput"
+      responses:
+        "201":
+          description: Account created and signed in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthSession"
+        "400":
+          description: Invalid registration details
+        "409":
+          description: Email is already registered
+        "429":
+          description: Too many requests
+        "503":
+          description: Authentication storage is unavailable
+  /auth/login:
+    post:
+      operationId: loginAuthUser
+      tags: [auth]
+      summary: Sign in with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthCredentialsInput"
+      responses:
+        "200":
+          description: Signed in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthSession"
+        "400":
+          description: Invalid request
+        "401":
+          description: Invalid credentials or temporary lock
+        "429":
+          description: Too many requests
+        "503":
+          description: Authentication storage is unavailable
+  /auth/refresh:
+    post:
+      operationId: refreshAuthSession
+      tags: [auth]
+      summary: Rotate the refresh token and issue a new access token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshTokenInput"
+      responses:
+        "200":
+          description: Session tokens rotated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthSession"
+        "400":
+          description: Invalid request
+        "401":
+          description: Refresh token is invalid, expired, or revoked
+        "429":
+          description: Too many requests
+        "503":
+          description: Authentication storage is unavailable
+  /auth/logout:
+    post:
+      operationId: logoutAuthUser
+      tags: [auth]
+      summary: Revoke a refresh token family
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshTokenInput"
+      responses:
+        "200":
+          description: Refresh session revoked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthLogoutResponse"
+        "400":
+          description: Invalid request
+        "429":
+          description: Too many requests
+        "503":
+          description: Authentication storage is unavailable
+  /auth/me:
+    get:
+      operationId: getCurrentAuthUser
+      tags: [auth]
+      summary: Return the current authenticated user
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUserResponse"
+        "401":
+          description: Missing or invalid access token
+        "503":
+          description: Authentication storage is unavailable
   /companies:
     get:
       operationId: listCompanies
       tags: [companies]
       summary: List companies available to the signed-in user
+      security:
+        - bearerAuth: []
       responses:
         "200":
           description: Company memberships
@@ -49,7 +173,9 @@ paths:
     post:
       operationId: createCompany
       tags: [companies]
-      summary: Create a company and its starter chart of accounts
+      summary: Create a company and make the current user its owner
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -77,6 +203,8 @@ paths:
       operationId: listAccounts
       tags: [accounting]
       summary: List a company's chart of accounts
+      security:
+        - bearerAuth: []
       responses:
         "200":
           description: Accounts
@@ -96,6 +224,8 @@ paths:
       operationId: createAccount
       tags: [accounting]
       summary: Add an account to the chart
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -125,6 +255,8 @@ paths:
       operationId: listJournalEntries
       tags: [accounting]
       summary: List posted journal entries
+      security:
+        - bearerAuth: []
       responses:
         "200":
           description: Journal entries with lines
@@ -145,6 +277,8 @@ paths:
       tags: [accounting]
       summary: Post a balanced journal entry
       description: Posted entries are immutable; corrections must use a reversing entry.
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -162,6 +296,69 @@ paths:
           description: Unbalanced or invalid journal entry
         "403":
           description: Insufficient company role
+  /companies/{companyId}/authorization:
+    parameters:
+      - name: companyId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getCompanyAuthorization
+      tags: [companies]
+      summary: Return current user's role and permissions for a company
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Membership authorization
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompanyAccess"
+        "401":
+          description: Missing or invalid access token
+        "403":
+          description: Not a member of this company
+        "503":
+          description: Authentication storage is unavailable
+  /companies/{companyId}/members:
+    parameters:
+      - name: companyId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: addCompanyMember
+      tags: [companies]
+      summary: Add an existing account to a company
+      description: Requires members:manage permission. Only an owner may assign the admin role; owner cannot be assigned through this route.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompanyMemberCreate"
+      responses:
+        "201":
+          description: Member added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompanyMember"
+        "400":
+          description: Invalid company or member details
+        "403":
+          description: Membership or role permission denied
+        "404":
+          description: Company or registered account not found
+        "409":
+          description: Account is already a member
 components:
   schemas:
     HealthStatus:
@@ -171,6 +368,131 @@ components:
           type: string
       required:
         - status
+    AuthRegisterInput:
+      type: object
+      required: [email, password, displayName]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        password:
+          type: string
+          minLength: 12
+          maxLength: 72
+          description: Maximum 72 UTF-8 bytes because bcrypt is used.
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 120
+    AuthCredentialsInput:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        password:
+          type: string
+          minLength: 1
+          maxLength: 72
+    RefreshTokenInput:
+      type: object
+      required: [refreshToken]
+      properties:
+        refreshToken:
+          type: string
+          minLength: 32
+          maxLength: 256
+    AuthUser:
+      type: object
+      required: [id, email, displayName]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        displayName:
+          type: string
+    AuthSession:
+      type: object
+      required: [user, accessToken, tokenType, expiresIn, refreshToken, refreshExpiresIn]
+      properties:
+        user:
+          $ref: "#/components/schemas/AuthUser"
+        accessToken:
+          type: string
+        tokenType:
+          type: string
+          enum: [Bearer]
+        expiresIn:
+          type: integer
+          enum: [900]
+        refreshToken:
+          type: string
+        refreshExpiresIn:
+          type: integer
+          enum: [2592000]
+    AuthUserResponse:
+      type: object
+      required: [user]
+      properties:
+        user:
+          $ref: "#/components/schemas/AuthUser"
+    AuthLogoutResponse:
+      type: object
+      required: [ok]
+      properties:
+        ok:
+          type: boolean
+          enum: [true]
+    CompanyAccess:
+      type: object
+      required: [companyId, role, permissions]
+      properties:
+        companyId:
+          type: string
+          format: uuid
+        role:
+          type: string
+          enum: [owner, admin, accountant, sales, purchasing, inventory, hr, viewer]
+        permissions:
+          type: array
+          items:
+            type: string
+    CompanyMemberCreate:
+      type: object
+      required: [email, role]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        role:
+          type: string
+          enum: [admin, accountant, sales, purchasing, inventory, hr, viewer]
+    CompanyMember:
+      type: object
+      required: [userId, email, role]
+      properties:
+        userId:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [admin, accountant, sales, purchasing, inventory, hr, viewer]
+    AuthError:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
     Currency:
       type: string
       pattern: "^[A-Z]{3}$"
@@ -329,4 +651,9 @@ components:
           items:
             $ref: "#/components/schemas/JournalLine"
       required: [id, entryNumber, entryDate, description, status, lines]
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
 

@@ -27,14 +27,23 @@ import type {
 import type {
   Account,
   AccountCreate,
+  AuthCredentialsInput,
+  AuthLogoutResponse,
+  AuthRegisterInput,
+  AuthSession,
+  AuthUserResponse,
   Company,
+  CompanyAccess,
   CompanyCreate,
+  CompanyMember,
+  CompanyMemberCreate,
   HealthStatus,
   JournalEntry,
   JournalEntryCreate,
   ListAccounts200,
   ListCompanies200,
-  ListJournalEntries200
+  ListJournalEntries200,
+  RefreshTokenInput
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -166,6 +175,459 @@ export function useHealthCheck<TData = Awaited<ReturnType<typeof healthCheck>>, 
 
 
 
+export const getRegisterAuthUserUrl = () => {
+
+
+
+
+  return `/api/auth/register`
+}
+
+/**
+ * @summary Register an account
+ */
+export const registerAuthUser = async (authRegisterInput: AuthRegisterInput, options?: Parameters<typeof customFetch>[1]): Promise<AuthSession> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AuthSession>(getRegisterAuthUserUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(authRegisterInput)
+  }
+);}
+
+
+
+
+
+export const getRegisterAuthUserMutationKey = () => ['registerAuthUser'] as const;
+
+export const getRegisterAuthUserMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof registerAuthUser>>, TError,RegisterAuthUserMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof registerAuthUser>>, TError,RegisterAuthUserMutationVariables, TContext> => {
+
+const mutationKey = getRegisterAuthUserMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof registerAuthUser>>, RegisterAuthUserMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  registerAuthUser(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RegisterAuthUserMutationResult = NonNullable<Awaited<ReturnType<typeof registerAuthUser>>>
+    export type RegisterAuthUserMutationBody = BodyType<AuthRegisterInput>
+    export type RegisterAuthUserMutationError = ErrorType<void>
+    export type RegisterAuthUserMutationVariables = {data: BodyType<AuthRegisterInput>}
+
+    /**
+ * @summary Register an account
+ */
+export const useRegisterAuthUser = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof registerAuthUser>>, TError,RegisterAuthUserMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof registerAuthUser>>,
+        TError,
+        RegisterAuthUserMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRegisterAuthUserMutationOptions(options), queryClient);
+    }
+
+export const getLoginAuthUserUrl = () => {
+
+
+
+
+  return `/api/auth/login`
+}
+
+/**
+ * @summary Sign in with email and password
+ */
+export const loginAuthUser = async (authCredentialsInput: AuthCredentialsInput, options?: Parameters<typeof customFetch>[1]): Promise<AuthSession> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AuthSession>(getLoginAuthUserUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(authCredentialsInput)
+  }
+);}
+
+
+
+
+
+export const getLoginAuthUserMutationKey = () => ['loginAuthUser'] as const;
+
+export const getLoginAuthUserMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof loginAuthUser>>, TError,LoginAuthUserMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof loginAuthUser>>, TError,LoginAuthUserMutationVariables, TContext> => {
+
+const mutationKey = getLoginAuthUserMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof loginAuthUser>>, LoginAuthUserMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  loginAuthUser(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type LoginAuthUserMutationResult = NonNullable<Awaited<ReturnType<typeof loginAuthUser>>>
+    export type LoginAuthUserMutationBody = BodyType<AuthCredentialsInput>
+    export type LoginAuthUserMutationError = ErrorType<void>
+    export type LoginAuthUserMutationVariables = {data: BodyType<AuthCredentialsInput>}
+
+    /**
+ * @summary Sign in with email and password
+ */
+export const useLoginAuthUser = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof loginAuthUser>>, TError,LoginAuthUserMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof loginAuthUser>>,
+        TError,
+        LoginAuthUserMutationVariables,
+        TContext
+      > => {
+      return useMutation(getLoginAuthUserMutationOptions(options), queryClient);
+    }
+
+export const getRefreshAuthSessionUrl = () => {
+
+
+
+
+  return `/api/auth/refresh`
+}
+
+/**
+ * @summary Rotate the refresh token and issue a new access token
+ */
+export const refreshAuthSession = async (refreshTokenInput: RefreshTokenInput, options?: Parameters<typeof customFetch>[1]): Promise<AuthSession> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AuthSession>(getRefreshAuthSessionUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(refreshTokenInput)
+  }
+);}
+
+
+
+
+
+export const getRefreshAuthSessionMutationKey = () => ['refreshAuthSession'] as const;
+
+export const getRefreshAuthSessionMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof refreshAuthSession>>, TError,RefreshAuthSessionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof refreshAuthSession>>, TError,RefreshAuthSessionMutationVariables, TContext> => {
+
+const mutationKey = getRefreshAuthSessionMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof refreshAuthSession>>, RefreshAuthSessionMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  refreshAuthSession(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RefreshAuthSessionMutationResult = NonNullable<Awaited<ReturnType<typeof refreshAuthSession>>>
+    export type RefreshAuthSessionMutationBody = BodyType<RefreshTokenInput>
+    export type RefreshAuthSessionMutationError = ErrorType<void>
+    export type RefreshAuthSessionMutationVariables = {data: BodyType<RefreshTokenInput>}
+
+    /**
+ * @summary Rotate the refresh token and issue a new access token
+ */
+export const useRefreshAuthSession = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof refreshAuthSession>>, TError,RefreshAuthSessionMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof refreshAuthSession>>,
+        TError,
+        RefreshAuthSessionMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRefreshAuthSessionMutationOptions(options), queryClient);
+    }
+
+export const getLogoutAuthUserUrl = () => {
+
+
+
+
+  return `/api/auth/logout`
+}
+
+/**
+ * @summary Revoke a refresh token family
+ */
+export const logoutAuthUser = async (refreshTokenInput: RefreshTokenInput, options?: Parameters<typeof customFetch>[1]): Promise<AuthLogoutResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AuthLogoutResponse>(getLogoutAuthUserUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(refreshTokenInput)
+  }
+);}
+
+
+
+
+
+export const getLogoutAuthUserMutationKey = () => ['logoutAuthUser'] as const;
+
+export const getLogoutAuthUserMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof logoutAuthUser>>, TError,LogoutAuthUserMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof logoutAuthUser>>, TError,LogoutAuthUserMutationVariables, TContext> => {
+
+const mutationKey = getLogoutAuthUserMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof logoutAuthUser>>, LogoutAuthUserMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  logoutAuthUser(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type LogoutAuthUserMutationResult = NonNullable<Awaited<ReturnType<typeof logoutAuthUser>>>
+    export type LogoutAuthUserMutationBody = BodyType<RefreshTokenInput>
+    export type LogoutAuthUserMutationError = ErrorType<void>
+    export type LogoutAuthUserMutationVariables = {data: BodyType<RefreshTokenInput>}
+
+    /**
+ * @summary Revoke a refresh token family
+ */
+export const useLogoutAuthUser = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof logoutAuthUser>>, TError,LogoutAuthUserMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof logoutAuthUser>>,
+        TError,
+        LogoutAuthUserMutationVariables,
+        TContext
+      > => {
+      return useMutation(getLogoutAuthUserMutationOptions(options), queryClient);
+    }
+
+export const getGetCurrentAuthUserUrl = () => {
+
+
+
+
+  return `/api/auth/me`
+}
+
+/**
+ * @summary Return the current authenticated user
+ */
+export const getCurrentAuthUser = async ( options?: Parameters<typeof customFetch>[1]): Promise<AuthUserResponse> => {
+
+  return customFetch<AuthUserResponse>(getGetCurrentAuthUserUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCurrentAuthUserQueryKey = () => {
+    return [
+    `/api/auth/me`
+    ] as const;
+    }
+
+
+export const getGetCurrentAuthUserQueryOptions = <TData = Awaited<ReturnType<typeof getCurrentAuthUser>>, TError = ErrorType<void>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCurrentAuthUser>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCurrentAuthUserQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCurrentAuthUser>>> = ({ signal }) => getCurrentAuthUser({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCurrentAuthUser>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetCurrentAuthUserQueryResult = NonNullable<Awaited<ReturnType<typeof getCurrentAuthUser>>>
+export type GetCurrentAuthUserQueryError = ErrorType<void>
+
+
+export function useGetCurrentAuthUser<TData = Awaited<ReturnType<typeof getCurrentAuthUser>>, TError = ErrorType<void>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCurrentAuthUser>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getCurrentAuthUser>>,
+          TError,
+          Awaited<ReturnType<typeof getCurrentAuthUser>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetCurrentAuthUser<TData = Awaited<ReturnType<typeof getCurrentAuthUser>>, TError = ErrorType<void>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCurrentAuthUser>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getCurrentAuthUser>>,
+          TError,
+          Awaited<ReturnType<typeof getCurrentAuthUser>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetCurrentAuthUser<TData = Awaited<ReturnType<typeof getCurrentAuthUser>>, TError = ErrorType<void>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCurrentAuthUser>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Return the current authenticated user
+ */
+
+export function useGetCurrentAuthUser<TData = Awaited<ReturnType<typeof getCurrentAuthUser>>, TError = ErrorType<void>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCurrentAuthUser>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetCurrentAuthUserQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getListCompaniesUrl = () => {
 
 
@@ -276,7 +738,7 @@ export const getCreateCompanyUrl = () => {
 }
 
 /**
- * @summary Create a company and its starter chart of accounts
+ * @summary Create a company and make the current user its owner
  */
 export const createCompany = async (companyCreate: CompanyCreate, options?: Parameters<typeof customFetch>[1]): Promise<Company> => {
 
@@ -342,7 +804,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type CreateCompanyMutationVariables = {data: BodyType<CompanyCreate>}
 
     /**
- * @summary Create a company and its starter chart of accounts
+ * @summary Create a company and make the current user its owner
  */
 export const useCreateCompany = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCompany>>, TError,CreateCompanyMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -734,5 +1196,196 @@ export const useCreateJournalEntry = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getCreateJournalEntryMutationOptions(options), queryClient);
+    }
+
+export const getGetCompanyAuthorizationUrl = (companyId: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/authorization`
+}
+
+/**
+ * @summary Return current user's role and permissions for a company
+ */
+export const getCompanyAuthorization = async (companyId: string, options?: Parameters<typeof customFetch>[1]): Promise<CompanyAccess> => {
+
+  return customFetch<CompanyAccess>(getGetCompanyAuthorizationUrl(companyId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCompanyAuthorizationQueryKey = (companyId: string,) => {
+    return [
+    `/api/companies/${companyId}/authorization`
+    ] as const;
+    }
+
+
+export const getGetCompanyAuthorizationQueryOptions = <TData = Awaited<ReturnType<typeof getCompanyAuthorization>>, TError = ErrorType<void>>(companyId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCompanyAuthorization>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCompanyAuthorizationQueryKey(companyId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCompanyAuthorization>>> = ({ signal }) => getCompanyAuthorization(companyId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: companyId !== null && companyId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCompanyAuthorization>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetCompanyAuthorizationQueryResult = NonNullable<Awaited<ReturnType<typeof getCompanyAuthorization>>>
+export type GetCompanyAuthorizationQueryError = ErrorType<void>
+
+
+export function useGetCompanyAuthorization<TData = Awaited<ReturnType<typeof getCompanyAuthorization>>, TError = ErrorType<void>>(
+ companyId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCompanyAuthorization>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getCompanyAuthorization>>,
+          TError,
+          Awaited<ReturnType<typeof getCompanyAuthorization>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetCompanyAuthorization<TData = Awaited<ReturnType<typeof getCompanyAuthorization>>, TError = ErrorType<void>>(
+ companyId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCompanyAuthorization>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getCompanyAuthorization>>,
+          TError,
+          Awaited<ReturnType<typeof getCompanyAuthorization>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetCompanyAuthorization<TData = Awaited<ReturnType<typeof getCompanyAuthorization>>, TError = ErrorType<void>>(
+ companyId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCompanyAuthorization>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Return current user's role and permissions for a company
+ */
+
+export function useGetCompanyAuthorization<TData = Awaited<ReturnType<typeof getCompanyAuthorization>>, TError = ErrorType<void>>(
+ companyId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCompanyAuthorization>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetCompanyAuthorizationQueryOptions(companyId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getAddCompanyMemberUrl = (companyId: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/members`
+}
+
+/**
+ * Requires members:manage permission. Only an owner may assign the admin role; owner cannot be assigned through this route.
+ * @summary Add an existing account to a company
+ */
+export const addCompanyMember = async (companyId: string,
+    companyMemberCreate: CompanyMemberCreate, options?: Parameters<typeof customFetch>[1]): Promise<CompanyMember> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<CompanyMember>(getAddCompanyMemberUrl(companyId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(companyMemberCreate)
+  }
+);}
+
+
+
+
+
+export const getAddCompanyMemberMutationKey = () => ['addCompanyMember'] as const;
+
+export const getAddCompanyMemberMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addCompanyMember>>, TError,AddCompanyMemberMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof addCompanyMember>>, TError,AddCompanyMemberMutationVariables, TContext> => {
+
+const mutationKey = getAddCompanyMemberMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addCompanyMember>>, AddCompanyMemberMutationVariables> = (props) => {
+          const {companyId,data} = props ?? {};
+
+          return  addCompanyMember(companyId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddCompanyMemberMutationResult = NonNullable<Awaited<ReturnType<typeof addCompanyMember>>>
+    export type AddCompanyMemberMutationBody = BodyType<CompanyMemberCreate>
+    export type AddCompanyMemberMutationError = ErrorType<void>
+    export type AddCompanyMemberMutationVariables = {companyId: string;data: BodyType<CompanyMemberCreate>}
+
+    /**
+ * @summary Add an existing account to a company
+ */
+export const useAddCompanyMember = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addCompanyMember>>, TError,AddCompanyMemberMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof addCompanyMember>>,
+        TError,
+        AddCompanyMemberMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAddCompanyMemberMutationOptions(options), queryClient);
     }
 

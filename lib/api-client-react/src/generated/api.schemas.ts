@@ -9,6 +9,146 @@ export interface HealthStatus {
   status: string;
 }
 
+export interface AuthRegisterInput {
+  /** @maxLength 254 */
+  email: string;
+  /**
+     * Maximum 72 UTF-8 bytes because bcrypt is used.
+     * @minLength 12
+     * @maxLength 72
+     */
+  password: string;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  displayName: string;
+}
+
+export interface AuthCredentialsInput {
+  /** @maxLength 254 */
+  email: string;
+  /**
+     * @minLength 1
+     * @maxLength 72
+     */
+  password: string;
+}
+
+export interface RefreshTokenInput {
+  /**
+     * @minLength 32
+     * @maxLength 256
+     */
+  refreshToken: string;
+}
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  displayName: string;
+}
+
+export type AuthSessionTokenType = typeof AuthSessionTokenType[keyof typeof AuthSessionTokenType];
+
+
+export const AuthSessionTokenType = {
+  Bearer: 'Bearer',
+} as const;
+
+export type AuthSessionExpiresIn = typeof AuthSessionExpiresIn[keyof typeof AuthSessionExpiresIn];
+
+
+export const AuthSessionExpiresIn = {
+  NUMBER_900: 900,
+} as const;
+
+export type AuthSessionRefreshExpiresIn = typeof AuthSessionRefreshExpiresIn[keyof typeof AuthSessionRefreshExpiresIn];
+
+
+export const AuthSessionRefreshExpiresIn = {
+  NUMBER_2592000: 2592000,
+} as const;
+
+export interface AuthSession {
+  user: AuthUser;
+  accessToken: string;
+  tokenType: AuthSessionTokenType;
+  expiresIn: AuthSessionExpiresIn;
+  refreshToken: string;
+  refreshExpiresIn: AuthSessionRefreshExpiresIn;
+}
+
+export interface AuthUserResponse {
+  user: AuthUser;
+}
+
+export interface AuthLogoutResponse {
+  ok: true;
+}
+
+export type CompanyAccessRole = typeof CompanyAccessRole[keyof typeof CompanyAccessRole];
+
+
+export const CompanyAccessRole = {
+  owner: 'owner',
+  admin: 'admin',
+  accountant: 'accountant',
+  sales: 'sales',
+  purchasing: 'purchasing',
+  inventory: 'inventory',
+  hr: 'hr',
+  viewer: 'viewer',
+} as const;
+
+export interface CompanyAccess {
+  companyId: string;
+  role: CompanyAccessRole;
+  permissions: string[];
+}
+
+export type CompanyMemberCreateRole = typeof CompanyMemberCreateRole[keyof typeof CompanyMemberCreateRole];
+
+
+export const CompanyMemberCreateRole = {
+  admin: 'admin',
+  accountant: 'accountant',
+  sales: 'sales',
+  purchasing: 'purchasing',
+  inventory: 'inventory',
+  hr: 'hr',
+  viewer: 'viewer',
+} as const;
+
+export interface CompanyMemberCreate {
+  /** @maxLength 254 */
+  email: string;
+  role: CompanyMemberCreateRole;
+}
+
+export type CompanyMemberRole = typeof CompanyMemberRole[keyof typeof CompanyMemberRole];
+
+
+export const CompanyMemberRole = {
+  admin: 'admin',
+  accountant: 'accountant',
+  sales: 'sales',
+  purchasing: 'purchasing',
+  inventory: 'inventory',
+  hr: 'hr',
+  viewer: 'viewer',
+} as const;
+
+export interface CompanyMember {
+  userId: string;
+  email: string;
+  role: CompanyMemberRole;
+}
+
+export interface AuthError {
+  error: string;
+}
+
 /**
  * رمز عملة من ثلاثة أحرف، وتُحدد العملات المتاحة لكل منشأة من إعداداتها.
  * @pattern ^[A-Z]{3}$

@@ -18,6 +18,121 @@ export const HealthCheckResponse = zod.object({
 
 
 /**
+ * @summary Register an account
+ */
+export const registerAuthUserBodyEmailMax = 254;
+
+export const registerAuthUserBodyPasswordMin = 12;
+export const registerAuthUserBodyPasswordMax = 72;
+
+export const registerAuthUserBodyDisplayNameMax = 120;
+
+
+
+export const RegisterAuthUserBody = zod.object({
+  "email": zod.string().email().max(registerAuthUserBodyEmailMax),
+  "password": zod.string().min(registerAuthUserBodyPasswordMin).max(registerAuthUserBodyPasswordMax).describe('Maximum 72 UTF-8 bytes because bcrypt is used.'),
+  "displayName": zod.string().min(1).max(registerAuthUserBodyDisplayNameMax)
+})
+
+export const RegisterAuthUserResponse = zod.object({
+  "user": zod.object({
+  "id": zod.string().uuid(),
+  "email": zod.string().email(),
+  "displayName": zod.string()
+}),
+  "accessToken": zod.string(),
+  "tokenType": zod.enum(['Bearer']),
+  "expiresIn": zod.literal(900),
+  "refreshToken": zod.string(),
+  "refreshExpiresIn": zod.literal(2592000)
+})
+
+
+/**
+ * @summary Sign in with email and password
+ */
+export const loginAuthUserBodyEmailMax = 254;
+
+export const loginAuthUserBodyPasswordMax = 72;
+
+
+
+export const LoginAuthUserBody = zod.object({
+  "email": zod.string().email().max(loginAuthUserBodyEmailMax),
+  "password": zod.string().min(1).max(loginAuthUserBodyPasswordMax)
+})
+
+export const LoginAuthUserResponse = zod.object({
+  "user": zod.object({
+  "id": zod.string().uuid(),
+  "email": zod.string().email(),
+  "displayName": zod.string()
+}),
+  "accessToken": zod.string(),
+  "tokenType": zod.enum(['Bearer']),
+  "expiresIn": zod.literal(900),
+  "refreshToken": zod.string(),
+  "refreshExpiresIn": zod.literal(2592000)
+})
+
+
+/**
+ * @summary Rotate the refresh token and issue a new access token
+ */
+export const refreshAuthSessionBodyRefreshTokenMin = 32;
+export const refreshAuthSessionBodyRefreshTokenMax = 256;
+
+
+
+export const RefreshAuthSessionBody = zod.object({
+  "refreshToken": zod.string().min(refreshAuthSessionBodyRefreshTokenMin).max(refreshAuthSessionBodyRefreshTokenMax)
+})
+
+export const RefreshAuthSessionResponse = zod.object({
+  "user": zod.object({
+  "id": zod.string().uuid(),
+  "email": zod.string().email(),
+  "displayName": zod.string()
+}),
+  "accessToken": zod.string(),
+  "tokenType": zod.enum(['Bearer']),
+  "expiresIn": zod.literal(900),
+  "refreshToken": zod.string(),
+  "refreshExpiresIn": zod.literal(2592000)
+})
+
+
+/**
+ * @summary Revoke a refresh token family
+ */
+export const logoutAuthUserBodyRefreshTokenMin = 32;
+export const logoutAuthUserBodyRefreshTokenMax = 256;
+
+
+
+export const LogoutAuthUserBody = zod.object({
+  "refreshToken": zod.string().min(logoutAuthUserBodyRefreshTokenMin).max(logoutAuthUserBodyRefreshTokenMax)
+})
+
+export const LogoutAuthUserResponse = zod.object({
+  "ok": zod.literal(true)
+})
+
+
+/**
+ * @summary Return the current authenticated user
+ */
+export const GetCurrentAuthUserResponse = zod.object({
+  "user": zod.object({
+  "id": zod.string().uuid(),
+  "email": zod.string().email(),
+  "displayName": zod.string()
+})
+})
+
+
+/**
  * @summary List companies available to the signed-in user
  */
 export const listCompaniesResponseCompaniesItemBaseCurrencyRegExp = new RegExp('^[A-Z]{3}$');
@@ -36,7 +151,7 @@ export const ListCompaniesResponse = zod.object({
 
 
 /**
- * @summary Create a company and its starter chart of accounts
+ * @summary Create a company and make the current user its owner
  */
 export const createCompanyBodyNameMin = 2;
 export const createCompanyBodyNameMax = 160;
@@ -237,6 +352,44 @@ export const CreateJournalEntryResponse = zod.object({
   "accountCode": zod.string(),
   "accountName": zod.string()
 })))
+})
+
+
+/**
+ * @summary Return current user's role and permissions for a company
+ */
+export const GetCompanyAuthorizationParams = zod.object({
+  "companyId": zod.coerce.string().uuid()
+})
+
+export const GetCompanyAuthorizationResponse = zod.object({
+  "companyId": zod.string().uuid(),
+  "role": zod.enum(['owner', 'admin', 'accountant', 'sales', 'purchasing', 'inventory', 'hr', 'viewer']),
+  "permissions": zod.array(zod.string())
+})
+
+
+/**
+ * Requires members:manage permission. Only an owner may assign the admin role; owner cannot be assigned through this route.
+ * @summary Add an existing account to a company
+ */
+export const AddCompanyMemberParams = zod.object({
+  "companyId": zod.coerce.string().uuid()
+})
+
+export const addCompanyMemberBodyEmailMax = 254;
+
+
+
+export const AddCompanyMemberBody = zod.object({
+  "email": zod.string().email().max(addCompanyMemberBodyEmailMax),
+  "role": zod.enum(['admin', 'accountant', 'sales', 'purchasing', 'inventory', 'hr', 'viewer'])
+})
+
+export const AddCompanyMemberResponse = zod.object({
+  "userId": zod.string().uuid(),
+  "email": zod.string().email(),
+  "role": zod.enum(['admin', 'accountant', 'sales', 'purchasing', 'inventory', 'hr', 'viewer'])
 })
 
 

@@ -1,6 +1,6 @@
-# [Project name]
+# مدار ERP
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+تطبيق إدارة موارد أعمال باللغة العربية، يضم المبيعات والمخزون والمالية ويدعم الريال اليمني والسعودي والدولار الأمريكي.
 
 ## Run & Operate
 
@@ -22,7 +22,20 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- تطبيق الجوال: `artifacts/midad-erp/`
+- واجهات التطبيق وحالته المحلية: `artifacts/midad-erp/components/`
+- الخادم: `artifacts/api-server/`
+- عقد API: `lib/api-spec/openapi.yaml`
+- مخططات قاعدة البيانات: `lib/db/src/schema/`
+- سجل التسليم الحالي والخطوات التالية: `.agents/PROJECT_STATUS.md`
+
+## استمرارية العمل بين المحادثات
+
+- قبل بدء أي عمل، اقرأ `.agents/PROJECT_STATUS.md` ثم تحقق من الحالة الفعلية في الملفات؛ الملف ملخص قابل للتحديث وليس بديلًا عن فحص الكود.
+- أكمل أعلى خطوة مفتوحة في سجل التسليم، ولا تعِد بناء ما هو منجز.
+- بعد كل مرحلة مهمة أو عند التوقف، حدّث سجل التسليم: ما أُنجز، ما لم يُنجز، ما تم التحقق منه، والخطوة التالية والعوائق.
+- لا تسجّل ميزة على أنها مكتملة إلا بعد التحقق منها. لا تضع كلمات مرور أو مفاتيح أو أسرارًا في سجل التسليم.
+- مشاركة المشروع مع متعاونين في Replit تتيح لهم الوصول إلى ملفات التطوير، لكنها لا تجعل بيانات التطبيق المحلية مشتركة تلقائيًا.
 
 ## Architecture decisions
 
@@ -30,7 +43,7 @@ _Populate as you build — non-obvious choices a reader couldn't infer from the 
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+النسخة الحالية نموذج أولي لتطبيق جوال عربي RTL لإدارة الأعمال. تعرض واجهات للرئيسية والمبيعات والمخزون والمالية والمزيد، وتتضمن نماذج بيانات للفواتير والأصناف والحركات المالية والقيود والموظفين والعملاء والموردين. تفاصيل الحالة الراهنة، وما ينقص لتصبح البيانات مشتركة بين المستخدمين، موجودة في `.agents/PROJECT_STATUS.md`.
 
 ## User preferences
 

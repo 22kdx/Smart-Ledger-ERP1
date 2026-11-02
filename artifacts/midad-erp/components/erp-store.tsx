@@ -29,6 +29,7 @@ export type Product = {
 
 export type Entry = {
   id: string;
+  invoiceId?: string;
   title: string;
   category: string;
   amount: number;
@@ -139,6 +140,27 @@ function todayLabel() {
   }).format(new Date());
 }
 
+function nextInvoiceNumber(invoices: Invoice[]) {
+  const highestNumber = invoices.reduce((highest, invoice) => {
+    const match = invoice.number.match(/^INV-(\d+)$/i);
+    return match ? Math.max(highest, Number(match[1])) : highest;
+  }, 0);
+  return `INV-${String(highestNumber + 1).padStart(4, '0')}`;
+}
+
+function invoicePaymentEntry(invoice: Invoice): Entry {
+  return {
+    id: `payment-${invoice.id}`,
+    invoiceId: invoice.id,
+    title: `تحصيل فاتورة ${invoice.number}`,
+    category: 'تحصيل مبيعات',
+    amount: invoice.amount,
+    currency: invoice.currency,
+    type: 'income',
+    date: invoice.date,
+  };
+}
+
 export function ERPProvider({ children }: { children: React.ReactNode }) {
   const [data, setData] = useState<ERPData>(seedData);
   const [hydrated, setHydrated] = useState(false);
@@ -182,14 +204,22 @@ export function ERPProvider({ children }: { children: React.ReactNode }) {
   const value: ERPContextValue = {
     data,
     hydrated,
-    addInvoice: (draft) =>
+    addInvoice: (draft) => {
+      const invoice: Invoice = {
+        ...draft,
+        id: createId(),
+        number: nextInvoiceNumber(data.invoices),
+        date: todayLabel(),
+      };
       commit({
         ...data,
-        invoices: [
-          { ...draft, id: createId(), number: `INV-${String(Date.now()).slice(-4)}`, date: todayLabel() },
-          ...data.invoices,
-        ],
-      }),
+        invoices: [invoice, ...data.invoices],
+        entries:
+          invoice.status === 'paid'
+            ? [invoicePaymentEntry(invoice), ...data.entries]
+            : data.entries,
+      });
+    },
     addProduct: (draft) =>
       commit({ ...data, products: [{ ...draft, id: createId() }, ...data.products] }),
     addEntry: (draft) =>
@@ -198,15 +228,25 @@ export function ERPProvider({ children }: { children: React.ReactNode }) {
       commit({ ...data, employees: [{ ...draft, id: createId() }, ...data.employees] }),
     addContact: (draft) =>
       commit({ ...data, contacts: [{ ...draft, id: createId() }, ...data.contacts] }),
-    toggleInvoiceStatus: (id) =>
+    toggleInvoiceStatus: (id) => {
+      const invoice = data.invoices.find((item) => item.id === id);
+      if (!invoice) return;
+
+      const nextStatus: InvoiceStatus = invoice.status === 'paid' ? 'pending' : 'paid';
+      const updatedInvoice = { ...invoice, status: nextStatus };
+      const nextEntries =
+        nextStatus === 'paid'
+          ? data.entries.some((entry) => entry.invoiceId === id)
+            ? data.entries
+            : [invoicePaymentEntry(updatedInvoice), ...data.entries]
+          : data.entries.filter((entry) => entry.invoiceId !== id);
+
       commit({
         ...data,
-        invoices: data.invoices.map((invoice) =>
-          invoice.id === id
-            ? { ...invoice, status: invoice.status === 'paid' ? 'pending' : 'paid' }
-            : invoice,
-        ),
-      }),
+        invoices: data.invoices.map((item) => (item.id === id ? updatedInvoice : item)),
+        entries: nextEntries,
+      });
+    },
     adjustProductStock: (id, amount) =>
       commit({
         ...data,

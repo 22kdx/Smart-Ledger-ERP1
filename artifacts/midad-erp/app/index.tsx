@@ -37,7 +37,7 @@ const tabs: { key: TabKey; label: string; icon: keyof typeof Feather.glyphMap }[
 function ERPApp() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { hydrated } = useERP();
+  const { data, hydrated } = useERP();
   const [activeTab, setActiveTab] = useState<TabKey>('home');
   const [formType, setFormType] = useState<FormType | null>(null);
   const topInset = Platform.OS === 'web' ? Math.max(insets.top, 67) : insets.top;
@@ -45,7 +45,13 @@ function ERPApp() {
 
   const openForm = (type: FormType) => setFormType(type);
   const notify = () => {
-    Alert.alert('الإشعارات', 'لا توجد إشعارات جديدة حالياً.');
+    const lowStock = data.products.filter((product) => product.quantity <= 6);
+    const pendingInvoices = data.invoices.filter((invoice) => invoice.status === 'pending');
+    const notices = [
+      ...lowStock.slice(0, 4).map((product) => `مخزون منخفض: ${product.name} — المتبقي ${product.quantity}`),
+      ...pendingInvoices.slice(0, 4).map((invoice) => `فاتورة مستحقة: ${invoice.number} — ${invoice.customer}`),
+    ];
+    Alert.alert('تنبيهات مدار', notices.join('\n') || 'لا توجد تنبيهات جديدة حالياً.');
   };
 
   if (!hydrated) {

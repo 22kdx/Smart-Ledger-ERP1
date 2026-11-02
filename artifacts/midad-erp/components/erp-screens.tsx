@@ -478,9 +478,10 @@ export function FinanceScreen({ onAdd }: { onAdd: (type: FormType) => void }) {
 
 export function MoreScreen({ onAdd }: { onAdd: (type: FormType) => void }) {
   const colors = useColors();
-  const { data, updateBaseCurrency, updateTaxRate } = useERP();
+  const { data, updateBaseCurrency, updateTaxRate, updateCompanyName } = useERP();
   const customers = data.contacts.filter((contact) => contact.kind === 'customer');
   const suppliers = data.contacts.filter((contact) => contact.kind === 'supplier');
+  const [companyNameInput, setCompanyNameInput] = useState(data.companyName);
   const [taxInput, setTaxInput] = useState(String(data.taxRate));
 
   return (
@@ -547,6 +548,36 @@ export function MoreScreen({ onAdd }: { onAdd: (type: FormType) => void }) {
       <View style={screenStyles.sectionBlock}>
         <SectionHeading title="إعدادات المنشأة" />
         <Card style={screenStyles.settingsCard}>
+          <Text style={[screenStyles.currencyCardTitle, { color: colors.foreground }]}>اسم المنشأة</Text>
+          <TextInput
+            value={companyNameInput}
+            onChangeText={setCompanyNameInput}
+            accessibilityLabel="اسم المنشأة"
+            placeholder="أدخل اسم المنشأة"
+            placeholderTextColor={colors.mutedForeground}
+            style={[
+              screenStyles.companyNameInput,
+              { backgroundColor: colors.muted, borderColor: colors.border, color: colors.foreground },
+            ]}
+            textAlign="right"
+          />
+          <Pressable
+            accessibilityRole="button"
+            testID="save-company-name"
+            onPress={() => {
+              const name = companyNameInput.trim();
+              if (name) updateCompanyName(name);
+              else setCompanyNameInput(data.companyName);
+            }}
+            style={({ pressed }) => [
+              screenStyles.saveSetting,
+              { backgroundColor: colors.secondary, opacity: pressed ? 0.65 : 1 },
+            ]}
+          >
+            <Feather name="check" size={15} color={colors.primary} />
+            <Text style={[screenStyles.saveSettingText, { color: colors.primary }]}>حفظ الاسم</Text>
+          </Pressable>
+          <View style={[screenStyles.settingDivider, { backgroundColor: colors.border }]} />
           <Text style={[screenStyles.currencyCardTitle, { color: colors.foreground }]}>العملة الأساسية</Text>
           <CurrencyPicker value={data.baseCurrency} onChange={updateBaseCurrency} />
           <View style={[screenStyles.settingDivider, { backgroundColor: colors.border }]} />
@@ -910,6 +941,7 @@ const screenStyles = StyleSheet.create({
   companyCopy: { flex: 1, alignItems: 'flex-start', gap: 5 },
   companyName: { fontSize: 15, fontWeight: '800', textAlign: 'right', writingDirection: 'rtl' },
   companyCaption: { fontSize: 11, textAlign: 'right', writingDirection: 'rtl' },
+  companyNameInput: { minHeight: 46, borderWidth: 1, borderRadius: 13, paddingHorizontal: 12, fontSize: 13, writingDirection: 'rtl' },
   directoryCard: { flex: 1, borderWidth: 1, borderRadius: 18, padding: 14, gap: 8 },
   directoryTitle: { fontSize: 13, fontWeight: '700', textAlign: 'right', writingDirection: 'rtl' },
   directoryCount: { fontSize: 11, textAlign: 'right', writingDirection: 'rtl' },

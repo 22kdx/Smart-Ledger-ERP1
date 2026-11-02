@@ -1,0 +1,24 @@
+{
+  "expo": {
+    "name": "مدار ERP",
+    "slug": "midad-erp",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/midad-icon.png",
+    "scheme": "midad-erp",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": false
+    },
+    "android": {},
+    "web": {
+      "favicon": "./assets/images/midad-icon.png",
+      "output": "static"
+    },
+    "plugins": ["expo-router"],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}

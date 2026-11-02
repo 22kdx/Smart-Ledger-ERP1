@@ -1,0 +1,24 @@
+kind = "mobile"
+previewPath = "/"
+title = "مدار ERP"
+description = "تطبيق محاسبي وإداري عربي للأنشطة التجارية والخدمية، يجمع الحسابات والفواتير والمشتريات والمخزون والموظفين والتقارير مع دعم الريال اليمني والريال السعودي والدولار."
+version = "1.0.0"
+id = "artifacts/midad-erp"
+router = "expo-domain"
+
+[[services]]
+name = "expo"
+ensurePreviewReachable = "/status"
+paths = [ "/" ]
+localPort = 21280
+
+[services.development]
+run = "pnpm --filter @workspace/midad-erp run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/midad-erp", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/midad-erp", "run", "serve" ]
+
+[services.env]
+PORT = "21280"
+BASE_PATH = "/"

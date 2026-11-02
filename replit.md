@@ -28,6 +28,7 @@
 - عقد API: `lib/api-spec/openapi.yaml`
 - مخططات قاعدة البيانات: `lib/db/src/schema/`
 - سجل التسليم الحالي والخطوات التالية: `.agents/PROJECT_STATUS.md`
+- خارطة التنفيذ والمخطط الكامل للميزات: `ERP_ROADMAP_AR.md` و`docs/ERP_MASTER_BLUEPRINT_AR.txt`
 
 ## استمرارية العمل بين المحادثات
 

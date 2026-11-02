@@ -10,6 +10,10 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: companies
+    description: Company workspace operations
+  - name: accounting
+    description: Chart of accounts and double-entry journals
 paths:
   /healthz:
     get:
@@ -24,6 +28,140 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /companies:
+    get:
+      operationId: listCompanies
+      tags: [companies]
+      summary: List companies available to the signed-in user
+      responses:
+        "200":
+          description: Company memberships
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [companies]
+                properties:
+                  companies:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Company"
+    post:
+      operationId: createCompany
+      tags: [companies]
+      summary: Create a company and its starter chart of accounts
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompanyCreate"
+      responses:
+        "201":
+          description: Company created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Company"
+        "400":
+          description: Invalid company details
+  /companies/{companyId}/accounts:
+    parameters:
+      - name: companyId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: listAccounts
+      tags: [accounting]
+      summary: List a company's chart of accounts
+      responses:
+        "200":
+          description: Accounts
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [accounts]
+                properties:
+                  accounts:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Account"
+        "403":
+          description: Not a member of this company
+    post:
+      operationId: createAccount
+      tags: [accounting]
+      summary: Add an account to the chart
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AccountCreate"
+      responses:
+        "201":
+          description: Account created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Account"
+        "400":
+          description: Invalid account details
+        "403":
+          description: Insufficient company role
+  /companies/{companyId}/journals:
+    parameters:
+      - name: companyId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: listJournalEntries
+      tags: [accounting]
+      summary: List posted journal entries
+      responses:
+        "200":
+          description: Journal entries with lines
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [entries]
+                properties:
+                  entries:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/JournalEntry"
+        "403":
+          description: Not a member of this company
+    post:
+      operationId: createJournalEntry
+      tags: [accounting]
+      summary: Post a balanced journal entry
+      description: Posted entries are immutable; corrections must use a reversing entry.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JournalEntryCreate"
+      responses:
+        "201":
+          description: Journal entry posted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JournalEntry"
+        "400":
+          description: Unbalanced or invalid journal entry
+        "403":
+          description: Insufficient company role
 components:
   schemas:
     HealthStatus:
@@ -33,4 +171,159 @@ components:
           type: string
       required:
         - status
+    Currency:
+      type: string
+      enum: [YER, SAR, USD]
+    CompanyCreate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 160
+        countryCode:
+          type: string
+          minLength: 2
+          maxLength: 2
+        baseCurrency:
+          $ref: "#/components/schemas/Currency"
+        taxRate:
+          type: number
+          minimum: 0
+          maximum: 100
+      required: [name]
+    Company:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        countryCode:
+          type: [string, "null"]
+        baseCurrency:
+          $ref: "#/components/schemas/Currency"
+        taxRate:
+          type: number
+        role:
+          type: string
+          enum: [owner, admin, accountant, sales, purchasing, inventory, hr, viewer]
+      required: [id, name, baseCurrency, taxRate, role]
+    AccountCreate:
+      type: object
+      properties:
+        code:
+          type: string
+          minLength: 1
+          maxLength: 32
+        name:
+          type: string
+          minLength: 2
+          maxLength: 160
+        type:
+          type: string
+          enum: [asset, liability, equity, income, expense]
+        parentAccountId:
+          type: [string, "null"]
+          format: uuid
+      required: [code, name, type]
+    Account:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+          enum: [asset, liability, equity, income, expense]
+        parentAccountId:
+          type: [string, "null"]
+        isSystem:
+          type: boolean
+        isActive:
+          type: boolean
+      required: [id, code, name, type, isSystem, isActive]
+    JournalLineCreate:
+      type: object
+      properties:
+        accountId:
+          type: string
+          format: uuid
+        debit:
+          type: number
+          minimum: 0
+        credit:
+          type: number
+          minimum: 0
+        transactionCurrency:
+          $ref: "#/components/schemas/Currency"
+        transactionAmount:
+          type: number
+          minimum: 0
+        exchangeRate:
+          type: number
+          exclusiveMinimum: 0
+        memo:
+          type: [string, "null"]
+      required: [accountId, debit, credit, transactionCurrency, transactionAmount, exchangeRate]
+    JournalLine:
+      allOf:
+        - $ref: "#/components/schemas/JournalLineCreate"
+        - type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            accountCode:
+              type: string
+            accountName:
+              type: string
+          required: [id, accountCode, accountName]
+    JournalEntryCreate:
+      type: object
+      properties:
+        entryDate:
+          type: string
+          format: date
+        description:
+          type: string
+          minLength: 2
+          maxLength: 500
+        reference:
+          type: [string, "null"]
+          maxLength: 100
+        lines:
+          type: array
+          minItems: 2
+          items:
+            $ref: "#/components/schemas/JournalLineCreate"
+      required: [entryDate, description, lines]
+    JournalEntry:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        entryNumber:
+          type: string
+        entryDate:
+          type: string
+          format: date
+        description:
+          type: string
+        reference:
+          type: [string, "null"]
+        status:
+          type: string
+          enum: [posted, reversed]
+        lines:
+          type: array
+          items:
+            $ref: "#/components/schemas/JournalLine"
+      required: [id, entryNumber, entryDate, description, status, lines]
 

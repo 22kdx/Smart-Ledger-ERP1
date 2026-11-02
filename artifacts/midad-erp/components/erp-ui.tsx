@@ -5,7 +5,8 @@ import {
   ScrollView,
   StyleProp,
   StyleSheet,
-  Text,
+  Text as NativeText,
+  TextProps,
   TextStyle,
   View,
   ViewStyle,
@@ -14,6 +15,47 @@ import { useColors } from '@/hooks/useColors';
 import type { Currency } from './erp-store';
 
 export const CURRENCIES: Currency[] = ['SAR', 'YER', 'USD'];
+
+export const APP_FONTS = {
+  arabic: {
+    regular: 'IBMPlexSansArabic_400Regular',
+    medium: 'IBMPlexSansArabic_500Medium',
+    semibold: 'IBMPlexSansArabic_600SemiBold',
+    bold: 'IBMPlexSansArabic_700Bold',
+  },
+  latin: {
+    regular: 'Inter_400Regular',
+    medium: 'Inter_500Medium',
+    semibold: 'Inter_600SemiBold',
+    bold: 'Inter_700Bold',
+  },
+} as const;
+
+function containsArabic(node: React.ReactNode): boolean {
+  if (typeof node === 'string') return /[\u0600-\u06ff]/.test(node);
+  if (Array.isArray(node)) return node.some(containsArabic);
+  if (React.isValidElement<{ children?: React.ReactNode }>(node)) {
+    return containsArabic(node.props.children);
+  }
+  return false;
+}
+
+function fontForText(node: React.ReactNode, style: TextProps['style']) {
+  const weight = String(StyleSheet.flatten(style)?.fontWeight ?? '400');
+  const family = containsArabic(node) ? APP_FONTS.arabic : APP_FONTS.latin;
+  if (weight === 'bold' || Number(weight) >= 700) return family.bold;
+  if (Number(weight) >= 600) return family.semibold;
+  if (Number(weight) >= 500) return family.medium;
+  return family.regular;
+}
+
+export function AppText({ children, style, ...props }: TextProps) {
+  return (
+    <NativeText {...props} style={[style, { fontFamily: fontForText(children, style) }]}>
+      {children}
+    </NativeText>
+  );
+}
 
 export function currencyLabel(currency: Currency) {
   if (currency === 'SAR') return 'ر.س';
@@ -57,7 +99,7 @@ export function Title({
   style?: StyleProp<TextStyle>;
 }) {
   const colors = useColors();
-  return <Text style={[styles.title, { color: colors.foreground }, style]}>{children}</Text>;
+  return <AppText style={[styles.title, { color: colors.foreground }, style]}>{children}</AppText>;
 }
 
 export function BodyText({
@@ -71,7 +113,7 @@ export function BodyText({
 }) {
   const colors = useColors();
   return (
-    <Text
+    <AppText
       style={[
         styles.body,
         { color: muted ? colors.mutedForeground : colors.foreground },
@@ -79,7 +121,7 @@ export function BodyText({
       ]}
     >
       {children}
-    </Text>
+    </AppText>
   );
 }
 
@@ -95,7 +137,7 @@ export function Card({
     <View
       style={[
         styles.card,
-        { backgroundColor: colors.card, borderColor: colors.border },
+        { backgroundColor: colors.card, borderColor: colors.border, borderRadius: colors.radius },
         style,
       ]}
     >
@@ -116,14 +158,14 @@ export function SectionHeading({
   const colors = useColors();
   return (
     <View style={styles.sectionHeading}>
-      <Text style={[styles.sectionTitle, { color: colors.foreground }]}>{title}</Text>
+      <AppText style={[styles.sectionTitle, { color: colors.foreground }]}>{title}</AppText>
       {action ? (
         <Pressable
           accessibilityRole="button"
           onPress={onAction}
           style={({ pressed }) => ({ opacity: pressed ? 0.65 : 1 })}
         >
-          <Text style={[styles.actionText, { color: colors.primary }]}>{action}</Text>
+            <AppText style={[styles.actionText, { color: colors.primary }]}>{action}</AppText>
         </Pressable>
       ) : null}
     </View>
@@ -164,15 +206,15 @@ export function CurrencyPicker({
               },
             ]}
           >
-            <Text
+            <AppText
               style={[
                 styles.currencyText,
-                { color: compact ? '#ffffff' : colors.mutedForeground },
-                active && { color: compact ? '#ffffff' : colors.primary, fontWeight: '700' },
+                { color: compact ? colors.primaryForeground : colors.mutedForeground },
+                active && { color: compact ? colors.primaryForeground : colors.primary, fontWeight: '700' },
               ]}
             >
               {currency}
-            </Text>
+            </AppText>
           </Pressable>
         );
       })}
@@ -223,8 +265,8 @@ export function EmptyState({
       <View style={[styles.emptyIcon, { backgroundColor: colors.secondary }]}>
         <Feather name={icon} size={21} color={colors.primary} />
       </View>
-      <Text style={[styles.emptyTitle, { color: colors.foreground }]}>{title}</Text>
-      <Text style={[styles.emptyDetail, { color: colors.mutedForeground }]}>{detail}</Text>
+      <AppText style={[styles.emptyTitle, { color: colors.foreground }]}>{title}</AppText>
+      <AppText style={[styles.emptyDetail, { color: colors.mutedForeground }]}>{detail}</AppText>
     </View>
   );
 }

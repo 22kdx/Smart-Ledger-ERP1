@@ -8,11 +8,12 @@ import {
   Platform,
   Pressable,
   StyleSheet,
-  Text,
+  useColorScheme,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors } from '@/hooks/useColors';
+import { AppText } from '../components/erp-ui';
 import { ERPFormSheet } from '../components/erp-form';
 import {
   DashboardScreen,
@@ -36,6 +37,7 @@ const tabs: { key: TabKey; label: string; icon: keyof typeof Feather.glyphMap }[
 
 function ERPApp() {
   const colors = useColors();
+  const colorScheme = useColorScheme();
   const insets = useSafeAreaInsets();
   const { data, hydrated } = useERP();
   const [activeTab, setActiveTab] = useState<TabKey>('home');
@@ -57,19 +59,19 @@ function ERPApp() {
   if (!hydrated) {
     return (
       <View style={[appStyles.loading, { backgroundColor: colors.background, paddingTop: topInset }]}>
-        <StatusBar style="dark" />
+        <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
         <View style={[appStyles.loadingMark, { backgroundColor: colors.primary }]}>
           <Feather name="pie-chart" size={23} color={colors.primaryForeground} />
         </View>
         <ActivityIndicator color={colors.primary} />
-        <Text style={[appStyles.loadingText, { color: colors.mutedForeground }]}>جارٍ تجهيز مساحة مدار</Text>
+          <AppText style={[appStyles.loadingText, { color: colors.mutedForeground }]}>جارٍ تجهيز مساحة مدار</AppText>
       </View>
     );
   }
 
   return (
     <View style={[appStyles.root, { backgroundColor: colors.background, paddingTop: topInset }]}>
-      <StatusBar style={colors.background === '#101b18' ? 'light' : 'dark'} />
+      <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
       <View style={appStyles.screen}>
         {activeTab === 'home' ? <DashboardScreen onAdd={openForm} onNotify={notify} /> : null}
         {activeTab === 'sales' ? <SalesScreen onAdd={openForm} /> : null}
@@ -106,9 +108,9 @@ function ERPApp() {
               <View style={[appStyles.tabIcon, active && { backgroundColor: colors.secondary }]}>
                 <Feather name={tab.icon} size={18} color={active ? colors.primary : colors.mutedForeground} />
               </View>
-              <Text style={[appStyles.tabLabel, { color: active ? colors.primary : colors.mutedForeground, fontWeight: active ? '700' : '500' }]}>
+              <AppText style={[appStyles.tabLabel, { color: active ? colors.primary : colors.mutedForeground, fontWeight: active ? '700' : '500' }]}>
                 {tab.label}
-              </Text>
+              </AppText>
             </Pressable>
           );
         })}
@@ -142,7 +144,7 @@ const appStyles = StyleSheet.create({
   },
   tab: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 3 },
   tabIcon: { width: 38, height: 29, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
-  tabLabel: { fontSize: 9, textAlign: 'center', writingDirection: 'rtl' },
+  tabLabel: { fontSize: 10, textAlign: 'center', writingDirection: 'rtl' },
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 13 },
   loadingMark: { width: 56, height: 56, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
   loadingText: { fontSize: 12, textAlign: 'center', writingDirection: 'rtl' },

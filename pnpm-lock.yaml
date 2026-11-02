@@ -236,6 +236,9 @@ importers:
       '@clerk/expo':
         specifier: ^4.14.5
         version: 4.14.5(@types/react@19.3.0)(expo-auth-session@58.0.16(expo@58.0.22)(react-native@0.88.0(@babel/core@7.29.7)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)(typescript@6.0.3))(expo-constants@58.0.14)(expo-crypto@58.0.7(expo@58.0.22))(expo-secure-store@58.0.2(expo@58.0.22))(expo-web-browser@58.0.7(expo@58.0.22)(react-native@0.88.0(@babel/core@7.29.7)(@types/react@19.3.0)(react@19.3.0)))(expo@58.0.22)(react-dom@19.3.0(react@19.3.0))(react-native@0.88.0(@babel/core@7.29.7)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)(typescript@6.0.3)(zod@3.25.76)
+      '@expo-google-fonts/ibm-plex-sans-arabic':
+        specifier: ^0.4.2
+        version: 0.4.2
       expo-auth-session:
         specifier: ~58.0.16
         version: 58.0.16(expo@58.0.22)(react-native@0.88.0(@babel/core@7.29.7)(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)(typescript@6.0.3)
@@ -1125,6 +1128,9 @@ packages:
     engines: {node: '>=18'}
     cpu: [x64]
     os: [linux]
+
+  '@expo-google-fonts/ibm-plex-sans-arabic@0.4.2':
+    resolution: {integrity: sha512-Cx24iSo/4pWBKHVf69tbVLDUiHWCSTHrhKPw/+SYWLDnyiX10WXh+amNWRSo9N3ruwd+qk9AQgDaIY1KO0u1Ig==}
 
   '@expo-google-fonts/inter@0.4.2':
     resolution: {integrity: sha512-syfiImMaDmq7cFi0of+waE2M4uSCyd16zgyWxdPOY7fN2VBmSLKEzkfbZgeOjJq61kSqPBNNtXjggiQiSD6gMQ==}
@@ -6133,6 +6139,8 @@ snapshots:
 
   '@esbuild/linux-x64@0.28.2':
     optional: true
+
+  '@expo-google-fonts/ibm-plex-sans-arabic@0.4.2': {}
 
   '@expo-google-fonts/inter@0.4.2': {}
 

@@ -6,13 +6,12 @@ import {
   Modal,
   Pressable,
   StyleSheet,
-  Text,
   TextInput,
   View,
 } from 'react-native';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { useColors } from '@/hooks/useColors';
-import { CurrencyPicker } from './erp-ui';
+import { APP_FONTS, AppText, CurrencyPicker } from './erp-ui';
 import {
   ContactKind,
   Currency,
@@ -21,6 +20,8 @@ import {
   useERP,
 } from './erp-store';
 import { FormType, formTitle } from './erp-screens';
+
+const Text = AppText;
 
 const emptyFields: Record<string, string> = {
   name: '',
@@ -186,7 +187,7 @@ export function ERPFormSheet({
       onRequestClose={onClose}
       statusBarTranslucent
     >
-      <View style={[formStyles.overlay, { backgroundColor: 'rgba(12,25,21,0.48)' }]}>
+      <View style={[formStyles.overlay, { backgroundColor: 'rgba(11,14,20,0.56)' }]}>
         <Pressable accessibilityRole="button" accessibilityLabel="إغلاق النافذة" onPress={onClose} style={StyleSheet.absoluteFill} />
         <View style={[formStyles.sheet, { backgroundColor: colors.background, borderColor: colors.border }]}>
           <View style={[formStyles.handle, { backgroundColor: colors.border }]} />
@@ -451,7 +452,7 @@ const formStyles = StyleSheet.create({
   formContent: { paddingHorizontal: 20, paddingBottom: 28, gap: 14 },
   field: { gap: 7 },
   fieldLabel: { fontSize: 12, fontWeight: '700', textAlign: 'right', writingDirection: 'rtl' },
-  input: { minHeight: 48, borderWidth: 1, borderRadius: 14, paddingHorizontal: 13, fontSize: 14, textAlign: 'right', writingDirection: 'rtl' },
+  input: { minHeight: 48, borderWidth: 1, borderRadius: 14, paddingHorizontal: 13, fontSize: 14, fontFamily: APP_FONTS.arabic.regular, textAlign: 'right', writingDirection: 'rtl' },
   fieldRow: { flexDirection: 'row-reverse', gap: 10 },
   fieldHalf: { flex: 1 },
   choices: { flexDirection: 'row-reverse', gap: 8 },

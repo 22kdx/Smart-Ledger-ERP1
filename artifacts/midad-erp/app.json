@@ -4,6 +4,9 @@
     "slug": "midad-erp",
     "version": "1.0.0",
     "orientation": "portrait",
+    "splash": {
+      "backgroundColor": "#F4F6FA"
+    },
     "icon": "./assets/images/midad-icon.png",
     "scheme": "midad-erp",
     "userInterfaceStyle": "automatic",

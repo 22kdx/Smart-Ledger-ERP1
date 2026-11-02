@@ -4,12 +4,13 @@ import React, { useMemo, useState } from 'react';
 import {
   Pressable,
   StyleSheet,
-  Text,
   TextInput,
   View,
 } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 import {
+  APP_FONTS,
+  AppText,
   BodyText,
   Card,
   CurrencyPicker,
@@ -32,6 +33,8 @@ import {
   getAccountBalances,
   useERP,
 } from './erp-store';
+
+const Text = AppText;
 
 export type FormType = 'invoice' | 'product' | 'income' | 'expense' | 'employee' | 'customer' | 'supplier' | 'journal';
 
@@ -1128,7 +1131,7 @@ const screenStyles = StyleSheet.create({
   actionsRow: { flexDirection: 'row-reverse', justifyContent: 'space-between', gap: 8 },
   quickAction: { flex: 1, alignItems: 'center', gap: 8, paddingVertical: 2 },
   quickIcon: { width: 46, height: 46, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  quickLabel: { fontSize: 11, fontWeight: '600', textAlign: 'center', writingDirection: 'rtl' },
+  quickLabel: { fontSize: 12, fontWeight: '600', textAlign: 'center', writingDirection: 'rtl' },
   summaryCard: { gap: 17 },
   summaryHeader: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between' },
   summaryTitle: { fontSize: 15, fontWeight: '700', textAlign: 'right', writingDirection: 'rtl' },
@@ -1145,7 +1148,7 @@ const screenStyles = StyleSheet.create({
   rowIcon: { width: 38, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   rowMain: { flex: 1, minWidth: 0, alignItems: 'flex-start', gap: 4 },
   rowTitle: { fontSize: 13, fontWeight: '700', textAlign: 'right', writingDirection: 'rtl' },
-  rowSub: { fontSize: 10, textAlign: 'right', writingDirection: 'rtl' },
+  rowSub: { fontSize: 11, textAlign: 'right', writingDirection: 'rtl' },
   rowAmount: { fontSize: 12, fontWeight: '700', textAlign: 'left', writingDirection: 'rtl' },
   salesBanner: { borderRadius: 22, padding: 20, flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center' },
   bannerLabel: { color: 'rgba(255,255,255,0.75)', fontSize: 12, textAlign: 'right', writingDirection: 'rtl' },
@@ -1154,13 +1157,13 @@ const screenStyles = StyleSheet.create({
   primaryButton: { borderRadius: 15, minHeight: 51, flexDirection: 'row-reverse', justifyContent: 'center', alignItems: 'center', gap: 8 },
   primaryButtonText: { fontSize: 14, fontWeight: '700', textAlign: 'center', writingDirection: 'rtl' },
   searchBox: { minHeight: 48, borderRadius: 15, borderWidth: 1, flexDirection: 'row-reverse', alignItems: 'center', paddingHorizontal: 14, gap: 10 },
-  searchInput: { flex: 1, minHeight: 46, fontSize: 12, textAlign: 'right', writingDirection: 'rtl' },
+  searchInput: { flex: 1, minHeight: 46, fontSize: 14, fontFamily: APP_FONTS.arabic.regular, textAlign: 'right', writingDirection: 'rtl' },
   filterRow: { flexDirection: 'row-reverse', gap: 8 },
   filterChip: { borderWidth: 1, paddingHorizontal: 15, paddingVertical: 8, borderRadius: 12 },
   filterText: { fontSize: 11, fontWeight: '600', textAlign: 'center', writingDirection: 'rtl' },
   statusPill: { flexDirection: 'row-reverse', alignItems: 'center', alignSelf: 'flex-start', gap: 5, borderRadius: 9, paddingVertical: 4, paddingHorizontal: 7, marginTop: 3 },
   statusDot: { width: 5, height: 5, borderRadius: 3 },
-  statusText: { fontSize: 9, fontWeight: '700', writingDirection: 'rtl' },
+  statusText: { fontSize: 10, fontWeight: '700', writingDirection: 'rtl' },
   notice: { flexDirection: 'row-reverse', alignItems: 'center', paddingHorizontal: 13, paddingVertical: 11, gap: 9, borderRadius: 13 },
   noticeText: { flex: 1, fontSize: 12, fontWeight: '600', textAlign: 'right', writingDirection: 'rtl' },
   productRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: 9, paddingVertical: 13 },
@@ -1193,16 +1196,16 @@ const screenStyles = StyleSheet.create({
   reportAmount: { fontSize: 12, textAlign: 'left', writingDirection: 'rtl' },
   trialBalanceRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: 6, paddingVertical: 5 },
   trialHeader: { borderBottomWidth: StyleSheet.hairlineWidth, paddingBottom: 9 },
-  trialAccountName: { flex: 1, fontSize: 9, textAlign: 'right', writingDirection: 'rtl' },
+  trialAccountName: { flex: 1, fontSize: 10, textAlign: 'right', writingDirection: 'rtl' },
   trialAmounts: { width: 168, flexDirection: 'row-reverse', justifyContent: 'space-between', gap: 4 },
-  trialAmount: { flex: 1, fontSize: 8, textAlign: 'center', writingDirection: 'rtl' },
+  trialAmount: { flex: 1, fontSize: 9, textAlign: 'center', writingDirection: 'rtl' },
   trialTotals: { borderTopWidth: StyleSheet.hairlineWidth, marginTop: 5, paddingTop: 10 },
   companyCard: { flexDirection: 'row-reverse', alignItems: 'center', gap: 13 },
   companyMark: { width: 46, height: 46, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   companyCopy: { flex: 1, alignItems: 'flex-start', gap: 5 },
   companyName: { fontSize: 15, fontWeight: '800', textAlign: 'right', writingDirection: 'rtl' },
   companyCaption: { fontSize: 11, textAlign: 'right', writingDirection: 'rtl' },
-  companyNameInput: { minHeight: 46, borderWidth: 1, borderRadius: 13, paddingHorizontal: 12, fontSize: 13, writingDirection: 'rtl' },
+  companyNameInput: { minHeight: 46, borderWidth: 1, borderRadius: 13, paddingHorizontal: 12, fontSize: 14, fontFamily: APP_FONTS.arabic.regular, writingDirection: 'rtl' },
   directoryCard: { flex: 1, borderWidth: 1, borderRadius: 18, padding: 14, gap: 8 },
   directoryTitle: { fontSize: 13, fontWeight: '700', textAlign: 'right', writingDirection: 'rtl' },
   directoryCount: { fontSize: 11, textAlign: 'right', writingDirection: 'rtl' },
@@ -1214,7 +1217,7 @@ const screenStyles = StyleSheet.create({
   settingDivider: { height: StyleSheet.hairlineWidth },
   taxHeader: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   taxInputWrap: { minWidth: 74, height: 39, borderWidth: 1, borderRadius: 12, flexDirection: 'row-reverse', alignItems: 'center', paddingHorizontal: 7 },
-  taxInput: { width: 40, fontSize: 14, fontWeight: '700', paddingVertical: 5 },
+  taxInput: { width: 40, fontSize: 14, fontFamily: APP_FONTS.arabic.bold, fontWeight: '700', paddingVertical: 5 },
   taxSign: { fontSize: 12, fontWeight: '600' },
   saveSetting: { minHeight: 40, borderRadius: 12, flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'center', gap: 7 },
   saveSettingText: { fontSize: 12, fontWeight: '700', writingDirection: 'rtl' },

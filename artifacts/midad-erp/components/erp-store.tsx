@@ -1,6 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Alert } from 'react-native';
+import {
+  legacyTaxRateFor,
+  loadERPData,
+  saveERPData,
+} from './erp-storage';
 
 export type Currency = string;
 export type CurrencyOption = {
@@ -130,8 +135,6 @@ export type JournalEntryDraft = {
   currency: Currency;
 };
 
-const STORAGE_KEY = '@midad-erp/local-v1';
-
 export const DEFAULT_CURRENCIES: CurrencyOption[] = [
   { code: 'SAR', name: 'الريال السعودي', isActive: true },
   { code: 'YER', name: 'الريال اليمني', isActive: true },
@@ -228,118 +231,6 @@ function createId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === 'object';
-}
-
-function normalizeStoredCurrencies(
-  stored: unknown,
-  parsed: Partial<ERPData>,
-  baseCurrency: Currency,
-): CurrencyOption[] {
-  const currencies: CurrencyOption[] = Array.isArray(stored)
-    ? stored.flatMap((item): CurrencyOption[] => {
-        if (
-          !isRecord(item) ||
-          typeof item.code !== 'string' ||
-          !item.code.trim() ||
-          typeof item.name !== 'string'
-        ) {
-          return [];
-        }
-        return [{
-          code: item.code,
-          name: item.name,
-          isActive: item.isActive !== false,
-        }];
-      })
-    : DEFAULT_CURRENCIES.map((currency) => ({ ...currency }));
-  const normalized = currencies.length
-    ? currencies
-    : DEFAULT_CURRENCIES.map((currency) => ({ ...currency }));
-  const usedCurrencies = new Set<Currency>([baseCurrency]);
-  parsed.invoices?.forEach((item) => usedCurrencies.add(item.currency));
-  parsed.products?.forEach((item) => usedCurrencies.add(item.currency));
-  parsed.entries?.forEach((item) => usedCurrencies.add(item.currency));
-  parsed.employees?.forEach((item) => usedCurrencies.add(item.currency));
-  parsed.contacts?.forEach((item) => usedCurrencies.add(item.currency));
-  parsed.journalEntries?.forEach((entry) =>
-    entry.lines.forEach((line) => usedCurrencies.add(line.currency)),
-  );
-
-  usedCurrencies.forEach((code) => {
-    const existing = normalized.find((currency) => currency.code === code);
-    if (existing) {
-      if (code === baseCurrency) existing.isActive = true;
-      return;
-    }
-    normalized.push({ code, name: code, isActive: true });
-  });
-  return normalized;
-}
-
-function normalizeStoredTaxRules(stored: unknown, legacyTaxRate: number): TaxRule[] {
-  if (Array.isArray(stored)) {
-    return stored.flatMap((item): TaxRule[] => {
-      if (
-        !isRecord(item) ||
-        typeof item.id !== 'string' ||
-        typeof item.name !== 'string' ||
-        typeof item.rate !== 'number' ||
-        !Number.isFinite(item.rate)
-      ) {
-        return [];
-      }
-      return [{
-        id: item.id,
-        name: item.name,
-        rate: Math.min(100, Math.max(0, item.rate)),
-        countryCode: typeof item.countryCode === 'string' ? item.countryCode : null,
-        isActive: item.isActive !== false,
-      }];
-    });
-  }
-  if (legacyTaxRate > 0) {
-    return [{
-      id: 'legacy-tax-rule',
-      name: 'ضريبة القيمة المضافة',
-      rate: Math.min(100, Math.max(0, legacyTaxRate)),
-      countryCode: null,
-      isActive: true,
-    }];
-  }
-  return [];
-}
-
-function normalizeStoredExchangeRates(stored: unknown): ExchangeRate[] {
-  if (!Array.isArray(stored)) return [];
-  return stored.flatMap((item): ExchangeRate[] => {
-    if (
-      !isRecord(item) ||
-      typeof item.id !== 'string' ||
-      typeof item.fromCurrency !== 'string' ||
-      typeof item.toCurrency !== 'string' ||
-      typeof item.rate !== 'number' ||
-      !Number.isFinite(item.rate) ||
-      typeof item.effectiveDate !== 'string'
-    ) {
-      return [];
-    }
-    return [{
-      id: item.id,
-      fromCurrency: item.fromCurrency,
-      toCurrency: item.toCurrency,
-      rate: item.rate,
-      effectiveDate: item.effectiveDate,
-      source: typeof item.source === 'string' ? item.source : '',
-    }];
-  });
-}
-
-function legacyTaxRateFor(rules: TaxRule[]) {
-  return rules.find((rule) => rule.isActive)?.rate ?? 0;
-}
-
 function todayLabel() {
   return new Intl.DateTimeFormat('ar-SA-u-ca-gregory', {
     day: 'numeric',
@@ -434,14 +325,6 @@ function findInvoicePayment(invoice: Invoice, entries: Entry[]) {
   );
 }
 
-function attachInvoiceReferences(invoices: Invoice[], entries: Entry[]) {
-  return entries.map((entry) => {
-    if (entry.invoiceId || entry.category !== 'تحصيل مبيعات') return entry;
-    const invoice = invoices.find((item) => entry.title.includes(item.number));
-    return invoice ? { ...entry, invoiceId: invoice.id } : entry;
-  });
-}
-
 function buildInitialJournal(invoices: Invoice[], entries: Entry[]) {
   const journalEntries: JournalEntry[] = [];
   const consumedEntryIds = new Set<string>();
@@ -505,57 +388,14 @@ export function ERPProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let mounted = true;
-    AsyncStorage.getItem(STORAGE_KEY)
-      .then((stored) => {
-        if (!mounted || !stored) return;
-        const parsed = JSON.parse(stored) as Partial<ERPData>;
-        if (
-          Array.isArray(parsed.invoices) &&
-          Array.isArray(parsed.products) &&
-          Array.isArray(parsed.entries) &&
-          Array.isArray(parsed.employees) &&
-          Array.isArray(parsed.contacts)
-        ) {
-          const entries = attachInvoiceReferences(parsed.invoices, parsed.entries);
-          const baseCurrency =
-            typeof parsed.baseCurrency === 'string' && parsed.baseCurrency.trim()
-              ? parsed.baseCurrency
-              : seedData.baseCurrency;
-          const legacyTaxRate =
-            typeof parsed.taxRate === 'number' && Number.isFinite(parsed.taxRate)
-              ? parsed.taxRate
-              : 0;
-          const taxRules = normalizeStoredTaxRules(parsed.taxRules, legacyTaxRate);
-          const storedFiscalMonth =
-            Number.isInteger(parsed.fiscalYearStartMonth) &&
-            parsed.fiscalYearStartMonth! >= 1 &&
-            parsed.fiscalYearStartMonth! <= 12
-              ? parsed.fiscalYearStartMonth!
-              : null;
-          const storedFiscalDay =
-            storedFiscalMonth !== null &&
-            Number.isInteger(parsed.fiscalYearStartDay) &&
-            parsed.fiscalYearStartDay! >= 1 &&
-            parsed.fiscalYearStartDay! <= new Date(2020, storedFiscalMonth, 0).getDate()
-              ? parsed.fiscalYearStartDay!
-              : null;
-          setData({
-            ...seedData,
-            ...parsed,
-            countryCode: typeof parsed.countryCode === 'string' ? parsed.countryCode : null,
-            baseCurrency,
-            currencies: normalizeStoredCurrencies(parsed.currencies, parsed, baseCurrency),
-            taxRules,
-            exchangeRates: normalizeStoredExchangeRates(parsed.exchangeRates),
-            fiscalYearStartMonth: storedFiscalDay === null ? null : storedFiscalMonth,
-            fiscalYearStartDay: storedFiscalDay,
-            taxRate: legacyTaxRateFor(taxRules),
-            entries,
-            journalEntries: Array.isArray(parsed.journalEntries)
-              ? parsed.journalEntries
-              : buildInitialJournal(parsed.invoices, entries),
-          });
-        }
+    loadERPData(
+      (key) => AsyncStorage.getItem(key),
+      seedData,
+      DEFAULT_CURRENCIES,
+      buildInitialJournal,
+    )
+      .then((restored) => {
+        if (mounted && restored) setData(restored);
       })
       .catch(() => {
         if (mounted) {
@@ -572,7 +412,7 @@ export function ERPProvider({ children }: { children: React.ReactNode }) {
 
   const commit = (next: ERPData) => {
     setData(next);
-    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next)).catch(() => {
+    saveERPData((key, value) => AsyncStorage.setItem(key, value), next).catch(() => {
       Alert.alert('تعذر حفظ التغيير', 'تحقق من مساحة الجهاز ثم حاول مرة أخرى.');
     });
   };

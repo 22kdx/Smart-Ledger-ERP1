@@ -5,7 +5,6 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import type { Currency } from './currency';
 
 export interface CompanyCreate {
   /**
@@ -18,10 +17,15 @@ export interface CompanyCreate {
      * @maxLength 2
      */
   countryCode?: string;
-  baseCurrency?: Currency;
+  /**
+     * @nullable
+     * @pattern ^[A-Z]{3}$
+     */
+  baseCurrency?: string | null;
   /**
      * @minimum 0
      * @maximum 100
+     * @nullable
      */
-  taxRate?: number;
+  taxRate?: number | null;
 }

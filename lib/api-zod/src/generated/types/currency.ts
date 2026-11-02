@@ -6,11 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type Currency = typeof Currency[keyof typeof Currency];
-
-
-export const Currency = {
-  YER: 'YER',
-  SAR: 'SAR',
-  USD: 'USD',
-} as const;
+/**
+ * رمز عملة من ثلاثة أحرف، وتُحدد العملات المتاحة لكل منشأة من إعداداتها.
+ * @pattern ^[A-Z]{3}$
+ */
+export type Currency = string;

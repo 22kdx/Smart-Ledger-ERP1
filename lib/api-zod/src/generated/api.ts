@@ -20,13 +20,16 @@ export const HealthCheckResponse = zod.object({
 /**
  * @summary List companies available to the signed-in user
  */
+export const listCompaniesResponseCompaniesItemBaseCurrencyRegExp = new RegExp('^[A-Z]{3}$');
+
+
 export const ListCompaniesResponse = zod.object({
   "companies": zod.array(zod.object({
   "id": zod.string().uuid(),
   "name": zod.string(),
   "countryCode": zod.string().nullish(),
-  "baseCurrency": zod.enum(['YER', 'SAR', 'USD']),
-  "taxRate": zod.number(),
+  "baseCurrency": zod.string().regex(listCompaniesResponseCompaniesItemBaseCurrencyRegExp).nullable(),
+  "taxRate": zod.number().nullable(),
   "role": zod.enum(['owner', 'admin', 'accountant', 'sales', 'purchasing', 'inventory', 'hr', 'viewer'])
 }))
 })
@@ -41,6 +44,7 @@ export const createCompanyBodyNameMax = 160;
 export const createCompanyBodyCountryCodeMin = 2;
 export const createCompanyBodyCountryCodeMax = 2;
 
+export const createCompanyBodyBaseCurrencyRegExp = new RegExp('^[A-Z]{3}$');
 export const createCompanyBodyTaxRateMin = 0;
 export const createCompanyBodyTaxRateMax = 100;
 
@@ -49,16 +53,19 @@ export const createCompanyBodyTaxRateMax = 100;
 export const CreateCompanyBody = zod.object({
   "name": zod.string().min(createCompanyBodyNameMin).max(createCompanyBodyNameMax),
   "countryCode": zod.string().min(createCompanyBodyCountryCodeMin).max(createCompanyBodyCountryCodeMax).optional(),
-  "baseCurrency": zod.enum(['YER', 'SAR', 'USD']).optional(),
-  "taxRate": zod.number().min(createCompanyBodyTaxRateMin).max(createCompanyBodyTaxRateMax).optional()
+  "baseCurrency": zod.string().regex(createCompanyBodyBaseCurrencyRegExp).nullish(),
+  "taxRate": zod.number().min(createCompanyBodyTaxRateMin).max(createCompanyBodyTaxRateMax).nullish()
 })
+
+export const createCompanyResponseBaseCurrencyRegExp = new RegExp('^[A-Z]{3}$');
+
 
 export const CreateCompanyResponse = zod.object({
   "id": zod.string().uuid(),
   "name": zod.string(),
   "countryCode": zod.string().nullish(),
-  "baseCurrency": zod.enum(['YER', 'SAR', 'USD']),
-  "taxRate": zod.number(),
+  "baseCurrency": zod.string().regex(createCompanyResponseBaseCurrencyRegExp).nullable(),
+  "taxRate": zod.number().nullable(),
   "role": zod.enum(['owner', 'admin', 'accountant', 'sales', 'purchasing', 'inventory', 'hr', 'viewer'])
 })
 
@@ -126,6 +133,7 @@ export const listJournalEntriesResponseEntriesItemLinesItemOneDebitMin = 0;
 
 export const listJournalEntriesResponseEntriesItemLinesItemOneCreditMin = 0;
 
+export const listJournalEntriesResponseEntriesItemLinesItemOneTransactionCurrencyRegExp = new RegExp('^[A-Z]{3}$');
 export const listJournalEntriesResponseEntriesItemLinesItemOneTransactionAmountMin = 0;
 
 export const listJournalEntriesResponseEntriesItemLinesItemOneExchangeRateExclusiveMin = 0;
@@ -144,7 +152,7 @@ export const ListJournalEntriesResponse = zod.object({
   "accountId": zod.string().uuid(),
   "debit": zod.number().min(listJournalEntriesResponseEntriesItemLinesItemOneDebitMin),
   "credit": zod.number().min(listJournalEntriesResponseEntriesItemLinesItemOneCreditMin),
-  "transactionCurrency": zod.enum(['YER', 'SAR', 'USD']),
+  "transactionCurrency": zod.string().regex(listJournalEntriesResponseEntriesItemLinesItemOneTransactionCurrencyRegExp).describe('رمز عملة من ثلاثة أحرف، وتُحدد العملات المتاحة لكل منشأة من إعداداتها.'),
   "transactionAmount": zod.number().min(listJournalEntriesResponseEntriesItemLinesItemOneTransactionAmountMin),
   "exchangeRate": zod.number().gt(listJournalEntriesResponseEntriesItemLinesItemOneExchangeRateExclusiveMin),
   "memo": zod.string().nullish()
@@ -174,6 +182,7 @@ export const createJournalEntryBodyLinesItemDebitMin = 0;
 
 export const createJournalEntryBodyLinesItemCreditMin = 0;
 
+export const createJournalEntryBodyLinesItemTransactionCurrencyRegExp = new RegExp('^[A-Z]{3}$');
 export const createJournalEntryBodyLinesItemTransactionAmountMin = 0;
 
 export const createJournalEntryBodyLinesItemExchangeRateExclusiveMin = 0;
@@ -190,7 +199,7 @@ export const CreateJournalEntryBody = zod.object({
   "accountId": zod.string().uuid(),
   "debit": zod.number().min(createJournalEntryBodyLinesItemDebitMin),
   "credit": zod.number().min(createJournalEntryBodyLinesItemCreditMin),
-  "transactionCurrency": zod.enum(['YER', 'SAR', 'USD']),
+  "transactionCurrency": zod.string().regex(createJournalEntryBodyLinesItemTransactionCurrencyRegExp).describe('رمز عملة من ثلاثة أحرف، وتُحدد العملات المتاحة لكل منشأة من إعداداتها.'),
   "transactionAmount": zod.number().min(createJournalEntryBodyLinesItemTransactionAmountMin),
   "exchangeRate": zod.number().gt(createJournalEntryBodyLinesItemExchangeRateExclusiveMin),
   "memo": zod.string().nullish()
@@ -201,6 +210,7 @@ export const createJournalEntryResponseLinesItemOneDebitMin = 0;
 
 export const createJournalEntryResponseLinesItemOneCreditMin = 0;
 
+export const createJournalEntryResponseLinesItemOneTransactionCurrencyRegExp = new RegExp('^[A-Z]{3}$');
 export const createJournalEntryResponseLinesItemOneTransactionAmountMin = 0;
 
 export const createJournalEntryResponseLinesItemOneExchangeRateExclusiveMin = 0;
@@ -218,7 +228,7 @@ export const CreateJournalEntryResponse = zod.object({
   "accountId": zod.string().uuid(),
   "debit": zod.number().min(createJournalEntryResponseLinesItemOneDebitMin),
   "credit": zod.number().min(createJournalEntryResponseLinesItemOneCreditMin),
-  "transactionCurrency": zod.enum(['YER', 'SAR', 'USD']),
+  "transactionCurrency": zod.string().regex(createJournalEntryResponseLinesItemOneTransactionCurrencyRegExp).describe('رمز عملة من ثلاثة أحرف، وتُحدد العملات المتاحة لكل منشأة من إعداداتها.'),
   "transactionAmount": zod.number().min(createJournalEntryResponseLinesItemOneTransactionAmountMin),
   "exchangeRate": zod.number().gt(createJournalEntryResponseLinesItemOneExchangeRateExclusiveMin),
   "memo": zod.string().nullish()

@@ -9,14 +9,11 @@ export interface HealthStatus {
   status: string;
 }
 
-export type Currency = typeof Currency[keyof typeof Currency];
-
-
-export const Currency = {
-  YER: 'YER',
-  SAR: 'SAR',
-  USD: 'USD',
-} as const;
+/**
+ * رمز عملة من ثلاثة أحرف، وتُحدد العملات المتاحة لكل منشأة من إعداداتها.
+ * @pattern ^[A-Z]{3}$
+ */
+export type Currency = string;
 
 export interface CompanyCreate {
   /**
@@ -29,12 +26,17 @@ export interface CompanyCreate {
      * @maxLength 2
      */
   countryCode?: string;
-  baseCurrency?: Currency;
+  /**
+     * @nullable
+     * @pattern ^[A-Z]{3}$
+     */
+  baseCurrency?: string | null;
   /**
      * @minimum 0
      * @maximum 100
+     * @nullable
      */
-  taxRate?: number;
+  taxRate?: number | null;
 }
 
 export type CompanyRole = typeof CompanyRole[keyof typeof CompanyRole];
@@ -56,8 +58,13 @@ export interface Company {
   name: string;
   /** @nullable */
   countryCode?: string | null;
-  baseCurrency: Currency;
-  taxRate: number;
+  /**
+     * @nullable
+     * @pattern ^[A-Z]{3}$
+     */
+  baseCurrency: string | null;
+  /** @nullable */
+  taxRate: number | null;
   role: CompanyRole;
 }
 

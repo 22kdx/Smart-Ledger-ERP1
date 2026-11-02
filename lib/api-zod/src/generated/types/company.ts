@@ -6,14 +6,18 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { CompanyRole } from './companyRole';
-import type { Currency } from './currency';
 
 export interface Company {
   id: string;
   name: string;
   /** @nullable */
   countryCode?: string | null;
-  baseCurrency: Currency;
-  taxRate: number;
+  /**
+     * @nullable
+     * @pattern ^[A-Z]{3}$
+     */
+  baseCurrency: string | null;
+  /** @nullable */
+  taxRate: number | null;
   role: CompanyRole;
 }

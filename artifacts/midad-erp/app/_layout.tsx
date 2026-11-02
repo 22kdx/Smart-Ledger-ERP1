@@ -20,6 +20,7 @@ import {
 } from '@expo-google-fonts/tajawal';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import { initializeApiClient } from '@/components/api-client';
 
 I18nManager.allowRTL(true);
 if (Platform.OS !== 'web') {
@@ -58,6 +59,10 @@ export default function RootLayout() {
       SplashScreen.hideAsync();
     }
   }, [fontsLoaded, fontError]);
+
+  useEffect(() => {
+    void initializeApiClient();
+  }, []);
 
   if (!fontsLoaded && !fontError) return null;
 

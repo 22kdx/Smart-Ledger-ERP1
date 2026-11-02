@@ -17,6 +17,7 @@ const DEFAULT_JSON_ACCEPT = "application/json, application/problem+json";
 
 let _baseUrl: string | null = null;
 let _authTokenGetter: AuthTokenGetter | null = null;
+let _requireBaseUrl = false;
 
 /**
  * Set a base URL that is prepended to every relative request URL
@@ -27,6 +28,14 @@ let _authTokenGetter: AuthTokenGetter | null = null;
  */
 export function setBaseUrl(url: string | null): void {
   _baseUrl = url ? url.replace(/\/+$/, "") : null;
+}
+
+/**
+ * Require an explicitly configured base URL before sending any request.
+ * This prevents mobile clients from silently sending requests to their app host.
+ */
+export function setRequireBaseUrl(required: boolean): void {
+  _requireBaseUrl = required;
 }
 
 /**
@@ -326,6 +335,10 @@ export async function customFetch<T = unknown>(
   input: RequestInfo | URL,
   options: CustomFetchOptions = {},
 ): Promise<T> {
+  if (_requireBaseUrl && !_baseUrl) {
+    throw new Error("API_BASE_URL is not configured.");
+  }
+
   input = applyBaseUrl(input);
   const { responseType = "auto", headers: headersInit, ...init } = options;
 

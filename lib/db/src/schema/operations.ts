@@ -10,7 +10,7 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
-import { companies, currencyCodeEnum } from "./organization";
+import { companies } from "./organization";
 
 export const contactTypeEnum = pgEnum("contact_type", ["customer", "supplier", "both"]);
 export const invoiceStatusEnum = pgEnum("invoice_status", [
@@ -42,7 +42,7 @@ export const contacts = pgTable(
     email: text("email"),
     taxNumber: text("tax_number"),
     address: text("address"),
-    currency: currencyCodeEnum("currency").notNull().default("YER"),
+    currency: text("currency").notNull(),
     openingBalance: numeric("opening_balance", { precision: 20, scale: 4 }).notNull().default("0"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -62,9 +62,9 @@ export const products = pgTable(
     unit: text("unit").notNull().default("قطعة"),
     quantityOnHand: numeric("quantity_on_hand", { precision: 20, scale: 4 }).notNull().default("0"),
     reorderLevel: numeric("reorder_level", { precision: 20, scale: 4 }).notNull().default("0"),
-    costPrice: numeric("cost_price", { precision: 20, scale: 4 }).notNull().default("0"),
-    sellingPrice: numeric("selling_price", { precision: 20, scale: 4 }).notNull().default("0"),
-    currency: currencyCodeEnum("currency").notNull().default("YER"),
+    costPrice: numeric("cost_price", { precision: 20, scale: 4 }).notNull(),
+    sellingPrice: numeric("selling_price", { precision: 20, scale: 4 }).notNull(),
+    currency: text("currency").notNull(),
     isActive: boolean("is_active").notNull().default(true),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -88,8 +88,8 @@ export const invoices = pgTable(
     status: invoiceStatusEnum("status").notNull().default("draft"),
     issueDate: date("issue_date").notNull(),
     dueDate: date("due_date"),
-    currency: currencyCodeEnum("currency").notNull().default("YER"),
-    exchangeRate: numeric("exchange_rate", { precision: 20, scale: 8 }).notNull().default("1"),
+    currency: text("currency").notNull(),
+    exchangeRate: numeric("exchange_rate", { precision: 20, scale: 8 }).notNull(),
     subtotal: numeric("subtotal", { precision: 20, scale: 4 }).notNull().default("0"),
     taxAmount: numeric("tax_amount", { precision: 20, scale: 4 }).notNull().default("0"),
     total: numeric("total", { precision: 20, scale: 4 }).notNull().default("0"),
@@ -150,7 +150,7 @@ export const employees = pgTable(
     email: text("email"),
     startDate: date("start_date"),
     monthlySalary: numeric("monthly_salary", { precision: 20, scale: 4 }).notNull().default("0"),
-    currency: currencyCodeEnum("currency").notNull().default("YER"),
+    currency: text("currency").notNull(),
     isActive: boolean("is_active").notNull().default(true),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -171,7 +171,7 @@ export const payrollRuns = pgTable(
     periodEnd: date("period_end").notNull(),
     status: payrollStatusEnum("status").notNull().default("draft"),
     total: numeric("total", { precision: 20, scale: 4 }).notNull().default("0"),
-    currency: currencyCodeEnum("currency").notNull().default("YER"),
+    currency: text("currency").notNull(),
     createdBy: text("created_by").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },

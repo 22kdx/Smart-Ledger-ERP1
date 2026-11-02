@@ -24,6 +24,7 @@ import {
   TaxRule,
   useERP,
 } from './erp-store';
+import { ApiSettings } from './api-settings';
 
 const Text = AppText;
 
@@ -743,6 +744,7 @@ export function CompanySettings() {
           </View>
         ) : null}
       </Card>
+      <ApiSettings />
       <View style={[settingsStyles.localNote, { backgroundColor: colors.infoSoft }]}>
         <Feather name="smartphone" size={16} color={colors.info} />
         <Text style={[settingsStyles.helper, { color: colors.info }]}>

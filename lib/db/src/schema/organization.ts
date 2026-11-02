@@ -9,7 +9,6 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-export const currencyCodeEnum = pgEnum("currency_code", ["YER", "SAR", "USD"]);
 export const membershipRoleEnum = pgEnum("membership_role", [
   "owner",
   "admin",
@@ -25,8 +24,8 @@ export const companies = pgTable("companies", {
   id: uuid("id").defaultRandom().primaryKey(),
   name: text("name").notNull(),
   countryCode: text("country_code"),
-  baseCurrency: currencyCodeEnum("base_currency").notNull().default("YER"),
-  taxRate: numeric("tax_rate", { precision: 7, scale: 4 }).notNull().default("0"),
+  baseCurrency: text("base_currency"),
+  taxRate: numeric("tax_rate", { precision: 7, scale: 4 }),
   timezone: text("timezone").notNull().default("UTC"),
   nextJournalNumber: integer("next_journal_number").notNull().default(1),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

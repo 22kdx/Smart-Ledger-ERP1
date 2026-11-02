@@ -173,7 +173,8 @@ components:
         - status
     Currency:
       type: string
-      enum: [YER, SAR, USD]
+      pattern: "^[A-Z]{3}$"
+      description: "رمز عملة من ثلاثة أحرف، وتُحدد العملات المتاحة لكل منشأة من إعداداتها."
     CompanyCreate:
       type: object
       properties:
@@ -186,9 +187,10 @@ components:
           minLength: 2
           maxLength: 2
         baseCurrency:
-          $ref: "#/components/schemas/Currency"
+          type: [string, "null"]
+          pattern: "^[A-Z]{3}$"
         taxRate:
-          type: number
+          type: [number, "null"]
           minimum: 0
           maximum: 100
       required: [name]
@@ -203,9 +205,10 @@ components:
         countryCode:
           type: [string, "null"]
         baseCurrency:
-          $ref: "#/components/schemas/Currency"
+          type: [string, "null"]
+          pattern: "^[A-Z]{3}$"
         taxRate:
-          type: number
+          type: [number, "null"]
         role:
           type: string
           enum: [owner, admin, accountant, sales, purchasing, inventory, hr, viewer]

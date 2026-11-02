@@ -12,7 +12,7 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
-import { companies, currencyCodeEnum } from "./organization";
+import { companies } from "./organization";
 
 export const accountTypeEnum = pgEnum("account_type", [
   "asset",
@@ -82,11 +82,11 @@ export const journalLines = pgTable(
     memo: text("memo"),
     debit: numeric("debit", { precision: 20, scale: 4 }).notNull().default("0"),
     credit: numeric("credit", { precision: 20, scale: 4 }).notNull().default("0"),
-    transactionCurrency: currencyCodeEnum("transaction_currency").notNull().default("YER"),
+    transactionCurrency: text("transaction_currency").notNull(),
     transactionAmount: numeric("transaction_amount", { precision: 20, scale: 4 })
       .notNull()
       .default("0"),
-    exchangeRate: numeric("exchange_rate", { precision: 20, scale: 8 }).notNull().default("1"),
+    exchangeRate: numeric("exchange_rate", { precision: 20, scale: 8 }).notNull(),
   },
   (table) => [index("journal_lines_entry_idx").on(table.journalEntryId)],
 );

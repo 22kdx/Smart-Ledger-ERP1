@@ -6,6 +6,30 @@ export type Currency = 'YER' | 'SAR' | 'USD';
 export type InvoiceStatus = 'paid' | 'pending';
 export type EntryType = 'income' | 'expense';
 export type ContactKind = 'customer' | 'supplier';
+export type AccountType = 'asset' | 'liability' | 'equity' | 'revenue' | 'expense';
+
+export type Account = {
+  id: string;
+  code: string;
+  name: string;
+  type: AccountType;
+};
+
+export type JournalLine = {
+  accountId: string;
+  debit: number;
+  credit: number;
+  currency: Currency;
+};
+
+export type JournalEntry = {
+  id: string;
+  description: string;
+  date: string;
+  lines: JournalLine[];
+  sourceType: 'invoice' | 'payment' | 'transaction' | 'manual';
+  sourceId?: string;
+};
 
 export type Invoice = {
   id: string;
@@ -58,6 +82,7 @@ export type ERPData = {
   invoices: Invoice[];
   products: Product[];
   entries: Entry[];
+  journalEntries: JournalEntry[];
   employees: Employee[];
   contacts: Contact[];
   companyName: string;
@@ -70,10 +95,28 @@ export type ProductDraft = Omit<Product, 'id'>;
 export type EntryDraft = Omit<Entry, 'id' | 'date'>;
 export type EmployeeDraft = Omit<Employee, 'id'>;
 export type ContactDraft = Omit<Contact, 'id'>;
+export type JournalEntryDraft = {
+  description: string;
+  debitAccountId: string;
+  creditAccountId: string;
+  amount: number;
+  currency: Currency;
+};
 
 const STORAGE_KEY = '@midad-erp/local-v1';
 
-const seedData: ERPData = {
+export const DEFAULT_ACCOUNTS: Account[] = [
+  { id: '1000', code: '1000', name: 'النقدية', type: 'asset' },
+  { id: '1100', code: '1100', name: 'العملاء', type: 'asset' },
+  { id: '1200', code: '1200', name: 'المخزون', type: 'asset' },
+  { id: '2000', code: '2000', name: 'الموردون', type: 'liability' },
+  { id: '3000', code: '3000', name: 'رأس المال', type: 'equity' },
+  { id: '4000', code: '4000', name: 'إيرادات المبيعات', type: 'revenue' },
+  { id: '4100', code: '4100', name: 'إيرادات أخرى', type: 'revenue' },
+  { id: '5000', code: '5000', name: 'مصروفات تشغيلية', type: 'expense' },
+];
+
+const seedData: Omit<ERPData, 'journalEntries'> = {
   companyName: 'مؤسسة مدار للتجارة',
   baseCurrency: 'SAR',
   taxRate: 0,
@@ -118,6 +161,7 @@ type ERPContextValue = {
   addInvoice: (draft: InvoiceDraft) => void;
   addProduct: (draft: ProductDraft) => void;
   addEntry: (draft: EntryDraft) => void;
+  addJournalEntry: (draft: JournalEntryDraft) => void;
   addEmployee: (draft: EmployeeDraft) => void;
   addContact: (draft: ContactDraft) => void;
   toggleInvoiceStatus: (id: string) => void;
@@ -161,8 +205,139 @@ function invoicePaymentEntry(invoice: Invoice): Entry {
   };
 }
 
+function accountLine(accountId: string, amount: number, side: 'debit' | 'credit', currency: Currency): JournalLine {
+  return {
+    accountId,
+    debit: side === 'debit' ? amount : 0,
+    credit: side === 'credit' ? amount : 0,
+    currency,
+  };
+}
+
+function invoiceIssueJournal(invoice: Invoice): JournalEntry {
+  return {
+    id: `invoice-issue-${invoice.id}`,
+    description: `إصدار فاتورة ${invoice.number}`,
+    date: invoice.date,
+    sourceType: 'invoice',
+    sourceId: invoice.id,
+    lines: [
+      accountLine('1100', invoice.amount, 'debit', invoice.currency),
+      accountLine('4000', invoice.amount, 'credit', invoice.currency),
+    ],
+  };
+}
+
+function invoicePaymentJournal(invoice: Invoice): JournalEntry {
+  return {
+    id: `invoice-payment-${invoice.id}`,
+    description: `تحصيل فاتورة ${invoice.number}`,
+    date: invoice.date,
+    sourceType: 'payment',
+    sourceId: invoice.id,
+    lines: [
+      accountLine('1000', invoice.amount, 'debit', invoice.currency),
+      accountLine('1100', invoice.amount, 'credit', invoice.currency),
+    ],
+  };
+}
+
+function journalFromEntry(entry: Entry): JournalEntry {
+  const isIncome = entry.type === 'income';
+  const isSalesCollection = isIncome && entry.category === 'تحصيل مبيعات';
+  return {
+    id: `transaction-${entry.id}`,
+    description: entry.title,
+    date: entry.date,
+    sourceType: 'transaction',
+    sourceId: entry.id,
+    lines: isIncome
+      ? [
+          accountLine('1000', entry.amount, 'debit', entry.currency),
+          accountLine(isSalesCollection ? '1100' : '4100', entry.amount, 'credit', entry.currency),
+        ]
+      : [
+          accountLine('5000', entry.amount, 'debit', entry.currency),
+          accountLine('1000', entry.amount, 'credit', entry.currency),
+        ],
+  };
+}
+
+function findInvoicePayment(invoice: Invoice, entries: Entry[]) {
+  return entries.find(
+    (entry) =>
+      entry.category === 'تحصيل مبيعات' &&
+      (entry.invoiceId === invoice.id || entry.title.includes(invoice.number)),
+  );
+}
+
+function attachInvoiceReferences(invoices: Invoice[], entries: Entry[]) {
+  return entries.map((entry) => {
+    if (entry.invoiceId || entry.category !== 'تحصيل مبيعات') return entry;
+    const invoice = invoices.find((item) => entry.title.includes(item.number));
+    return invoice ? { ...entry, invoiceId: invoice.id } : entry;
+  });
+}
+
+function buildInitialJournal(invoices: Invoice[], entries: Entry[]) {
+  const journalEntries: JournalEntry[] = [];
+  const consumedEntryIds = new Set<string>();
+
+  invoices.forEach((invoice) => {
+    journalEntries.push(invoiceIssueJournal(invoice));
+    const payment = findInvoicePayment(invoice, entries);
+    if (payment) {
+      journalEntries.push(journalFromEntry(payment));
+      consumedEntryIds.add(payment.id);
+    } else if (invoice.status === 'paid') {
+      journalEntries.push(invoicePaymentJournal(invoice));
+    }
+  });
+
+  entries.forEach((entry) => {
+    if (!consumedEntryIds.has(entry.id)) journalEntries.push(journalFromEntry(entry));
+  });
+
+  return journalEntries;
+}
+
+export function getAccountBalances(journalEntries: JournalEntry[], currency: Currency) {
+  const totals: Record<string, { debit: number; credit: number }> = {};
+  DEFAULT_ACCOUNTS.forEach((account) => {
+    totals[account.id] = { debit: 0, credit: 0 };
+  });
+
+  journalEntries.forEach((journal) => {
+    journal.lines.forEach((line) => {
+      if (line.currency !== currency || !totals[line.accountId]) return;
+      totals[line.accountId].debit += line.debit;
+      totals[line.accountId].credit += line.credit;
+    });
+  });
+
+  return Object.fromEntries(
+    DEFAULT_ACCOUNTS.map((account) => {
+      const total = totals[account.id];
+      const debitNormal = account.type === 'asset' || account.type === 'expense';
+      const signed = total.debit - total.credit;
+      const balance = debitNormal ? signed : -signed;
+      return [
+        account.id,
+        {
+          debit: Math.max(signed, 0),
+          credit: Math.max(-signed, 0),
+          balance,
+        },
+      ];
+    }),
+  ) as Record<string, { debit: number; credit: number; balance: number }>;
+}
+
 export function ERPProvider({ children }: { children: React.ReactNode }) {
-  const [data, setData] = useState<ERPData>(seedData);
+  const [data, setData] = useState<ERPData>(() => ({
+    ...seedData,
+    journalEntries: buildInitialJournal(seedData.invoices, seedData.entries),
+  }));
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
@@ -178,7 +353,15 @@ export function ERPProvider({ children }: { children: React.ReactNode }) {
           Array.isArray(parsed.employees) &&
           Array.isArray(parsed.contacts)
         ) {
-          setData({ ...seedData, ...parsed });
+          const entries = attachInvoiceReferences(parsed.invoices, parsed.entries);
+          setData({
+            ...seedData,
+            ...parsed,
+            entries,
+            journalEntries: Array.isArray(parsed.journalEntries)
+              ? parsed.journalEntries
+              : buildInitialJournal(parsed.invoices, entries),
+          });
         }
       })
       .catch(() => {
@@ -218,12 +401,43 @@ export function ERPProvider({ children }: { children: React.ReactNode }) {
           invoice.status === 'paid'
             ? [invoicePaymentEntry(invoice), ...data.entries]
             : data.entries,
+        journalEntries: [
+          ...(invoice.status === 'paid' ? [invoicePaymentJournal(invoice)] : []),
+          invoiceIssueJournal(invoice),
+          ...data.journalEntries,
+        ],
       });
     },
     addProduct: (draft) =>
       commit({ ...data, products: [{ ...draft, id: createId() }, ...data.products] }),
-    addEntry: (draft) =>
-      commit({ ...data, entries: [{ ...draft, id: createId(), date: todayLabel() }, ...data.entries] }),
+    addEntry: (draft) => {
+      const entry: Entry = { ...draft, id: createId(), date: todayLabel() };
+      commit({
+        ...data,
+        entries: [entry, ...data.entries],
+        journalEntries: [journalFromEntry(entry), ...data.journalEntries],
+      });
+    },
+    addJournalEntry: (draft) => {
+      const id = createId();
+      const date = todayLabel();
+      commit({
+        ...data,
+        journalEntries: [
+          {
+            id: `manual-${id}`,
+            description: draft.description,
+            date,
+            sourceType: 'manual',
+            lines: [
+              accountLine(draft.debitAccountId, draft.amount, 'debit', draft.currency),
+              accountLine(draft.creditAccountId, draft.amount, 'credit', draft.currency),
+            ],
+          },
+          ...data.journalEntries,
+        ],
+      });
+    },
     addEmployee: (draft) =>
       commit({ ...data, employees: [{ ...draft, id: createId() }, ...data.employees] }),
     addContact: (draft) =>
@@ -234,17 +448,33 @@ export function ERPProvider({ children }: { children: React.ReactNode }) {
 
       const nextStatus: InvoiceStatus = invoice.status === 'paid' ? 'pending' : 'paid';
       const updatedInvoice = { ...invoice, status: nextStatus };
+      const paymentEntry = findInvoicePayment(invoice, data.entries);
       const nextEntries =
         nextStatus === 'paid'
-          ? data.entries.some((entry) => entry.invoiceId === id)
+          ? paymentEntry
             ? data.entries
             : [invoicePaymentEntry(updatedInvoice), ...data.entries]
           : data.entries.filter((entry) => entry.invoiceId !== id);
+      const paymentSourceId = paymentEntry?.id;
+      const retainedJournalEntries = data.journalEntries.filter(
+        (journal) =>
+          !(
+            (journal.sourceType === 'payment' && journal.sourceId === id) ||
+            (journal.sourceType === 'transaction' && journal.sourceId === paymentSourceId)
+          ),
+      );
+      const nextJournalEntries =
+        nextStatus === 'paid'
+          ? paymentEntry
+            ? data.journalEntries
+            : [invoicePaymentJournal(updatedInvoice), ...data.journalEntries]
+          : retainedJournalEntries;
 
       commit({
         ...data,
         invoices: data.invoices.map((item) => (item.id === id ? updatedInvoice : item)),
         entries: nextEntries,
+        journalEntries: nextJournalEntries,
       });
     },
     adjustProductStock: (id, amount) =>

@@ -16,6 +16,7 @@ import { CurrencyPicker } from './erp-ui';
 import {
   ContactKind,
   Currency,
+  DEFAULT_ACCOUNTS,
   EntryType,
   useERP,
 } from './erp-store';
@@ -50,11 +51,14 @@ export function ERPFormSheet({
     addEntry,
     addEmployee,
     addContact,
+    addJournalEntry,
     data,
   } = useERP();
   const [fields, setFields] = useState<Record<string, string>>(emptyFields);
   const [currency, setCurrency] = useState<Currency>(data.baseCurrency);
   const [invoicePaid, setInvoicePaid] = useState(false);
+  const [debitAccountId, setDebitAccountId] = useState('1000');
+  const [creditAccountId, setCreditAccountId] = useState('4000');
   const [message, setMessage] = useState('');
 
   useEffect(() => {
@@ -62,6 +66,8 @@ export function ERPFormSheet({
       setFields(emptyFields);
       setCurrency(data.baseCurrency);
       setInvoicePaid(false);
+      setDebitAccountId('1000');
+      setCreditAccountId('4000');
       setMessage('');
     }
   }, [data.baseCurrency, type, visible]);
@@ -75,7 +81,24 @@ export function ERPFormSheet({
 
   const handleSubmit = () => {
     const numeric = (value: string) => Number(value.replaceAll(',', '').trim());
-    if (type === 'invoice') {
+    if (type === 'journal') {
+      const amount = numeric(fields.amount);
+      if (!fields.name.trim() || !Number.isFinite(amount) || amount <= 0) {
+        setMessage('أدخل وصف القيد ومبلغاً صحيحاً أكبر من صفر.');
+        return;
+      }
+      if (debitAccountId === creditAccountId) {
+        setMessage('اختر حسابين مختلفين للقيد المدين والدائن.');
+        return;
+      }
+      addJournalEntry({
+        description: fields.name.trim(),
+        debitAccountId,
+        creditAccountId,
+        amount,
+        currency,
+      });
+    } else if (type === 'invoice') {
       const amount = numeric(fields.amount);
       if (!fields.name.trim() || !Number.isFinite(amount) || amount <= 0) {
         setMessage('أدخل اسم العميل ومبلغاً صحيحاً أكبر من صفر.');
@@ -141,8 +164,19 @@ export function ERPFormSheet({
     onClose();
   };
 
-  const needsMoney = ['invoice', 'income', 'expense', 'product', 'employee'].includes(type);
-  const primaryLabel = type === 'invoice' ? 'حفظ الفاتورة' : type === 'product' ? 'إضافة الصنف' : type === 'employee' ? 'حفظ بيانات الموظف' : type === 'customer' || type === 'supplier' ? 'حفظ جهة الاتصال' : 'حفظ الحركة';
+  const needsMoney = ['invoice', 'income', 'expense', 'product', 'employee', 'journal'].includes(type);
+  const primaryLabel =
+    type === 'journal'
+      ? 'ترحيل القيد'
+      : type === 'invoice'
+        ? 'حفظ الفاتورة'
+        : type === 'product'
+          ? 'إضافة الصنف'
+          : type === 'employee'
+            ? 'حفظ بيانات الموظف'
+            : type === 'customer' || type === 'supplier'
+              ? 'حفظ جهة الاتصال'
+              : 'حفظ الحركة';
 
   return (
     <Modal
@@ -220,6 +254,25 @@ export function ERPFormSheet({
                 <CurrencyPicker value={currency} onChange={setCurrency} />
               </>
             ) : null}
+            {type === 'journal' ? (
+              <>
+                <Field label="وصف القيد" value={fields.name} onChangeText={(value) => setField('name', value)} placeholder="مثال: إيداع رأس المال" colors={colors} />
+                <Field label="المبلغ" value={fields.amount} onChangeText={(value) => setField('amount', value)} placeholder="0.00" keyboardType="decimal-pad" colors={colors} />
+                <AccountPicker
+                  label="الحساب المدين"
+                  value={debitAccountId}
+                  onChange={setDebitAccountId}
+                  colors={colors}
+                />
+                <AccountPicker
+                  label="الحساب الدائن"
+                  value={creditAccountId}
+                  onChange={setCreditAccountId}
+                  colors={colors}
+                />
+                <CurrencyPicker value={currency} onChange={setCurrency} />
+              </>
+            ) : null}
             {type === 'employee' ? (
               <>
                 <Field label="اسم الموظف" value={fields.name} onChangeText={(value) => setField('name', value)} placeholder="الاسم الكامل" colors={colors} />
@@ -237,7 +290,9 @@ export function ERPFormSheet({
             ) : null}
             {needsMoney ? (
               <Text style={[formStyles.currencyHint, { color: colors.mutedForeground }]}>
-                المبالغ تُحفظ بالعملة المحددة ولا تُحوّل تلقائياً.
+                {type === 'journal'
+                  ? 'يُسجل المبلغ مديناً ودائناً بالقيمة والعملة نفسيهما.'
+                  : 'المبالغ تُحفظ بالعملة المحددة ولا تُحوّل تلقائياً.'}
               </Text>
             ) : null}
             {message ? (
@@ -335,6 +390,54 @@ function ChoiceRow({
   );
 }
 
+function AccountPicker({
+  label,
+  value,
+  onChange,
+  colors,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  colors: ReturnType<typeof useColors>;
+}) {
+  return (
+    <View style={formStyles.field}>
+      <Text style={[formStyles.fieldLabel, { color: colors.foreground }]}>{label}</Text>
+      <View style={formStyles.accountOptions}>
+        {DEFAULT_ACCOUNTS.map((account) => {
+          const selected = value === account.id;
+          return (
+            <Pressable
+              key={account.id}
+              accessibilityRole="button"
+              accessibilityState={{ selected }}
+              onPress={() => onChange(account.id)}
+              style={[
+                formStyles.accountOption,
+                {
+                  backgroundColor: selected ? colors.secondary : colors.card,
+                  borderColor: selected ? colors.primary : colors.border,
+                },
+              ]}
+            >
+              <Text
+                numberOfLines={1}
+                style={[
+                  formStyles.accountOptionText,
+                  { color: selected ? colors.primary : colors.mutedForeground },
+                ]}
+              >
+                {account.code} · {account.name}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
 const formStyles = StyleSheet.create({
   overlay: { flex: 1, justifyContent: 'flex-end' },
   sheet: { maxHeight: '90%', minHeight: '58%', borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, paddingTop: 9, overflow: 'hidden' },
@@ -354,6 +457,9 @@ const formStyles = StyleSheet.create({
   choices: { flexDirection: 'row-reverse', gap: 8 },
   choice: { flex: 1, minHeight: 42, borderWidth: 1, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   choiceText: { fontSize: 12, fontWeight: '700', textAlign: 'center', writingDirection: 'rtl' },
+  accountOptions: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 7 },
+  accountOption: { flexBasis: '48%', minHeight: 40, borderWidth: 1, borderRadius: 12, justifyContent: 'center', paddingHorizontal: 9 },
+  accountOptionText: { fontSize: 10, fontWeight: '700', textAlign: 'right', writingDirection: 'rtl' },
   currencyHint: { fontSize: 10, textAlign: 'right', writingDirection: 'rtl' },
   errorBox: { flexDirection: 'row-reverse', alignItems: 'center', gap: 7, padding: 11, borderRadius: 12 },
   errorText: { flex: 1, fontSize: 11, textAlign: 'right', writingDirection: 'rtl' },

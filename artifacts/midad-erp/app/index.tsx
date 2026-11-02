@@ -136,7 +136,7 @@ const appStyles = StyleSheet.create({
   root: { flex: 1 },
   screen: { flex: 1 },
   tabBar: {
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
     borderTopWidth: StyleSheet.hairlineWidth,

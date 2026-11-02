@@ -341,6 +341,7 @@ function Field({
   keyboardType?: 'default' | 'decimal-pad' | 'number-pad' | 'phone-pad';
   colors: ReturnType<typeof useColors>;
 }) {
+  const leftAligned = keyboardType !== undefined && keyboardType !== 'default';
   return (
     <View style={formStyles.field}>
       <Text style={[formStyles.fieldLabel, { color: colors.foreground }]}>{label}</Text>
@@ -350,8 +351,17 @@ function Field({
         placeholder={placeholder}
         placeholderTextColor={colors.mutedForeground}
         keyboardType={keyboardType ?? 'default'}
-        style={[formStyles.input, { backgroundColor: colors.card, borderColor: colors.border, color: colors.foreground }]}
-        textAlign="right"
+        style={[
+          formStyles.input,
+          {
+            backgroundColor: colors.card,
+            borderColor: colors.border,
+            color: colors.foreground,
+            textAlign: leftAligned ? 'left' : 'right',
+            writingDirection: leftAligned ? 'ltr' : 'rtl',
+            fontFamily: leftAligned ? APP_FONTS.latin.regular : APP_FONTS.arabic.regular,
+          },
+        ]}
         autoCapitalize="sentences"
       />
     </View>
@@ -448,7 +458,7 @@ const formStyles = StyleSheet.create({
   overlay: { flex: 1, justifyContent: 'flex-end' },
   sheet: { maxHeight: '90%', minHeight: '58%', borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, paddingTop: 9, overflow: 'hidden' },
   handle: { width: 38, height: 4, borderRadius: 3, alignSelf: 'center', marginBottom: 12 },
-  sheetHeader: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingBottom: 14 },
+  sheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingBottom: 14 },
   sheetTitleWrap: { flex: 1, alignItems: 'flex-start', gap: 4 },
   sheetTitle: { fontSize: 18, fontWeight: '800', textAlign: 'right', writingDirection: 'rtl' },
   sheetSubtitle: { fontSize: 11, textAlign: 'right', writingDirection: 'rtl' },
@@ -458,17 +468,17 @@ const formStyles = StyleSheet.create({
   field: { gap: 7 },
   fieldLabel: { fontSize: 12, fontWeight: '700', textAlign: 'right', writingDirection: 'rtl' },
   input: { minHeight: 48, borderWidth: 1, borderRadius: 14, paddingHorizontal: 13, fontSize: 14, fontFamily: APP_FONTS.arabic.regular, textAlign: 'right', writingDirection: 'rtl' },
-  fieldRow: { flexDirection: 'row-reverse', gap: 10 },
+  fieldRow: { flexDirection: 'row', gap: 10 },
   fieldHalf: { flex: 1 },
-  choices: { flexDirection: 'row-reverse', gap: 8 },
+  choices: { flexDirection: 'row', gap: 8 },
   choice: { flex: 1, minHeight: 42, borderWidth: 1, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   choiceText: { fontSize: 12, fontWeight: '700', textAlign: 'center', writingDirection: 'rtl' },
-  accountOptions: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 7 },
+  accountOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
   accountOption: { flexBasis: '48%', minHeight: 40, borderWidth: 1, borderRadius: 12, justifyContent: 'center', paddingHorizontal: 9 },
   accountOptionText: { fontSize: 10, fontWeight: '700', textAlign: 'right', writingDirection: 'rtl' },
   currencyHint: { fontSize: 10, textAlign: 'right', writingDirection: 'rtl' },
-  errorBox: { flexDirection: 'row-reverse', alignItems: 'center', gap: 7, padding: 11, borderRadius: 12 },
+  errorBox: { flexDirection: 'row', alignItems: 'center', gap: 7, padding: 11, borderRadius: 12 },
   errorText: { flex: 1, fontSize: 11, textAlign: 'right', writingDirection: 'rtl' },
-  submitButton: { minHeight: 50, borderRadius: 15, flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 2 },
+  submitButton: { minHeight: 50, borderRadius: 15, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 2 },
   submitText: { fontSize: 14, fontWeight: '700', textAlign: 'center', writingDirection: 'rtl' },
 });

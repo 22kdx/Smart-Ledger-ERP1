@@ -65,7 +65,11 @@ function Field({
   maxLength?: number;
 }) {
   const colors = useColors();
-  const leftAligned = keyboardType === 'number-pad' || keyboardType === 'decimal-pad' || autoCapitalize === 'characters';
+  const leftAligned =
+    keyboardType === 'number-pad' ||
+    keyboardType === 'decimal-pad' ||
+    autoCapitalize === 'characters' ||
+    autoCapitalize === 'none';
   return (
     <View style={settingsStyles.field}>
       <Text style={[settingsStyles.fieldLabel, { color: colors.foreground }]}>{label}</Text>
@@ -86,6 +90,8 @@ function Field({
             borderColor: colors.border,
             color: colors.foreground,
             textAlign: leftAligned ? 'left' : 'right',
+            writingDirection: leftAligned ? 'ltr' : 'rtl',
+            fontFamily: leftAligned ? APP_FONTS.latin.regular : APP_FONTS.arabic.regular,
           },
         ]}
       />
@@ -763,13 +769,13 @@ const settingsStyles = StyleSheet.create({
     fontSize: 13,
     fontFamily: APP_FONTS.arabic.regular,
   },
-  twoFields: { flexDirection: 'row-reverse', gap: 9 },
+  twoFields: { flexDirection: 'row', gap: 9 },
   codeField: { width: 88 },
   nameField: { flex: 1, minWidth: 0 },
   actionButton: {
     minHeight: 46,
     borderRadius: 13,
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 7,
@@ -784,7 +790,7 @@ const settingsStyles = StyleSheet.create({
     justifyContent: 'center',
   },
   divider: { height: StyleSheet.hairlineWidth },
-  monthGrid: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 7 },
+  monthGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
   monthOption: {
     width: '23%',
     minHeight: 44,
@@ -798,21 +804,21 @@ const settingsStyles = StyleSheet.create({
     minHeight: 58,
     borderTopWidth: StyleSheet.hairlineWidth,
     paddingTop: 10,
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
   },
   listCopy: { flex: 1, minWidth: 0, gap: 3, alignItems: 'flex-start' },
   listTitle: { fontSize: 12, fontWeight: '700', textAlign: 'right', writingDirection: 'rtl' },
   ruleRow: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 10, gap: 8 },
-  ruleHeader: { flexDirection: 'row-reverse', alignItems: 'center', gap: 10 },
-  rateEditRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: 8 },
+  ruleHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  rateEditRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   rateInputWrap: {
     minHeight: 42,
     minWidth: 105,
     borderWidth: 1,
     borderRadius: 12,
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 8,
   },
@@ -823,6 +829,7 @@ const settingsStyles = StyleSheet.create({
     borderRadius: 9,
     paddingHorizontal: 8,
     textAlign: 'center',
+    writingDirection: 'ltr',
     fontFamily: APP_FONTS.latin.regular,
   },
   percentSign: { paddingHorizontal: 5, fontSize: 12, fontWeight: '600' },
@@ -839,5 +846,5 @@ const settingsStyles = StyleSheet.create({
   error: { fontSize: 11, textAlign: 'right', writingDirection: 'rtl' },
   feedback: { borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10 },
   feedbackText: { fontSize: 12, fontWeight: '600', textAlign: 'right', writingDirection: 'rtl' },
-  localNote: { flexDirection: 'row-reverse', alignItems: 'center', padding: 13, gap: 9, borderRadius: 13 },
+  localNote: { flexDirection: 'row', alignItems: 'center', padding: 13, gap: 9, borderRadius: 13 },
 });

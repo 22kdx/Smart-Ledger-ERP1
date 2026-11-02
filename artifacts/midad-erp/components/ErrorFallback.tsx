@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors } from '@/hooks/useColors';
 import { Feather } from '@expo/vector-icons';
 import { reloadAppAsync } from 'expo';
+import { AppText } from './erp-ui';
 
 export type ErrorFallbackProps = {
   error: Error;
@@ -68,13 +69,13 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
       ) : null}
 
       <View style={styles.content}>
-        <Text style={[styles.title, { color: colors.foreground }]}>
-          Something went wrong
-        </Text>
+        <AppText style={[styles.title, { color: colors.foreground }]}>
+          حدث خطأ غير متوقع
+        </AppText>
 
-        <Text style={[styles.message, { color: colors.mutedForeground }]}>
-          Please reload the app to continue.
-        </Text>
+        <AppText style={[styles.message, { color: colors.mutedForeground }]}>
+          أعد تشغيل التطبيق للمتابعة.
+        </AppText>
 
         <Pressable
           onPress={handleRestart}
@@ -87,11 +88,11 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
             },
           ]}
         >
-          <Text
+          <AppText
             style={[styles.buttonText, { color: colors.primaryForeground }]}
           >
-            Try Again
-          </Text>
+            حاول مرة أخرى
+          </AppText>
         </Pressable>
       </View>
 
@@ -115,9 +116,9 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
                   { borderBottomColor: colors.border },
                 ]}
               >
-                <Text style={[styles.modalTitle, { color: colors.foreground }]}>
-                  Error Details
-                </Text>
+                <AppText style={[styles.modalTitle, { color: colors.foreground }]}>
+                  تفاصيل الخطأ
+                </AppText>
                 <Pressable
                   onPress={() => setIsModalVisible(false)}
                   accessibilityLabel="Close error details"
@@ -270,5 +271,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 18,
     width: '100%',
+    textAlign: 'left',
+    writingDirection: 'ltr',
   },
 });

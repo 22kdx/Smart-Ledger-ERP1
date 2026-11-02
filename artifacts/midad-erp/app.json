@@ -13,7 +13,9 @@
     "ios": {
       "supportsTablet": false
     },
-    "android": {},
+    "android": {
+      "supportsRTL": true
+    },
     "web": {
       "favicon": "./assets/images/midad-icon.png",
       "output": "static"

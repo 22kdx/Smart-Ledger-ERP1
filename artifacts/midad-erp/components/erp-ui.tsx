@@ -17,10 +17,10 @@ import type { Currency, CurrencyOption } from './erp-store';
 
 export const APP_FONTS = {
   arabic: {
-    regular: 'IBMPlexSansArabic_400Regular',
-    medium: 'IBMPlexSansArabic_500Medium',
-    semibold: 'IBMPlexSansArabic_600SemiBold',
-    bold: 'IBMPlexSansArabic_700Bold',
+    regular: 'Tajawal_400Regular',
+    medium: 'Tajawal_500Medium',
+    semibold: 'Tajawal_700Bold',
+    bold: 'Tajawal_800ExtraBold',
   },
   latin: {
     regular: 'Inter_400Regular',
@@ -31,7 +31,9 @@ export const APP_FONTS = {
 } as const;
 
 function containsArabic(node: React.ReactNode): boolean {
-  if (typeof node === 'string') return /[\u0600-\u06ff]/.test(node);
+  if (typeof node === 'string') {
+    return /[\u0600-\u06ff\u0750-\u077f\u08a0-\u08ff\ufb50-\ufdff\ufe70-\ufeff]/.test(node);
+  }
   if (Array.isArray(node)) return node.some(containsArabic);
   if (React.isValidElement<{ children?: React.ReactNode }>(node)) {
     return containsArabic(node.props.children);
@@ -49,8 +51,19 @@ function fontForText(node: React.ReactNode, style: TextProps['style']) {
 }
 
 export function AppText({ children, style, ...props }: TextProps) {
+  const hasArabic = containsArabic(children);
   return (
-    <NativeText {...props} style={[style, { fontFamily: fontForText(children, style) }]}>
+    <NativeText
+      {...props}
+      style={[
+        style,
+        {
+          writingDirection: hasArabic ? 'rtl' : 'ltr',
+          ...(hasArabic ? { textAlign: 'right' as const } : {}),
+        },
+        { fontFamily: fontForText(children, style) },
+      ]}
+    >
       {children}
     </NativeText>
   );
@@ -322,7 +335,7 @@ export const styles = StyleSheet.create({
     gap: 13,
   },
   sectionHeading: {
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
@@ -340,14 +353,14 @@ export const styles = StyleSheet.create({
     writingDirection: 'rtl',
   },
   currencyPicker: {
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
     borderRadius: 14,
     padding: 3,
     gap: 3,
     maxWidth: '100%',
   },
-  currencyOptions: { flexDirection: 'row-reverse', gap: 3 },
+  currencyOptions: { flexDirection: 'row', gap: 3 },
   currencyPickerCompact: {
     alignSelf: 'flex-start',
   },

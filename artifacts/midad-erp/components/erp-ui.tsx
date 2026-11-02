@@ -30,6 +30,14 @@ export const APP_FONTS = {
   },
 } as const;
 
+export function toEnglishDigits(value: string) {
+  return value.replace(/[\u0660-\u0669\u06f0-\u06f9]/g, (digit) => {
+    const code = digit.charCodeAt(0);
+    const zero = code >= 0x06f0 ? 0x06f0 : 0x0660;
+    return String(code - zero);
+  });
+}
+
 function containsArabic(node: React.ReactNode): boolean {
   if (typeof node === 'string') {
     return /[\u0600-\u06ff\u0750-\u077f\u08a0-\u08ff\ufb50-\ufdff\ufe70-\ufeff]/.test(node);
@@ -39,6 +47,18 @@ function containsArabic(node: React.ReactNode): boolean {
     return containsArabic(node.props.children);
   }
   return false;
+}
+
+function normalizeTextNode(node: React.ReactNode): React.ReactNode {
+  if (typeof node === 'string') return toEnglishDigits(node);
+  if (typeof node === 'number') return String(node);
+  if (Array.isArray(node)) return node.map(normalizeTextNode);
+  if (React.isValidElement<{ children?: React.ReactNode }>(node) && node.props.children !== undefined) {
+    return React.cloneElement(node, {
+      children: normalizeTextNode(node.props.children),
+    });
+  }
+  return node;
 }
 
 function fontForText(node: React.ReactNode, style: TextProps['style']) {
@@ -51,7 +71,8 @@ function fontForText(node: React.ReactNode, style: TextProps['style']) {
 }
 
 export function AppText({ children, style, ...props }: TextProps) {
-  const hasArabic = containsArabic(children);
+  const normalizedChildren = normalizeTextNode(children);
+  const hasArabic = containsArabic(normalizedChildren);
   return (
     <NativeText
       {...props}
@@ -61,10 +82,10 @@ export function AppText({ children, style, ...props }: TextProps) {
           writingDirection: hasArabic ? 'rtl' : 'ltr',
           ...(hasArabic ? { textAlign: 'right' as const } : {}),
         },
-        { fontFamily: fontForText(children, style) },
+        { fontFamily: fontForText(normalizedChildren, style) },
       ]}
     >
-      {children}
+      {normalizedChildren}
     </NativeText>
   );
 }
@@ -77,7 +98,7 @@ export function currencyLabel(currency: Currency) {
 }
 
 export function formatMoney(amount: number, currency: Currency) {
-  const value = new Intl.NumberFormat('ar-SA-u-nu-arab', {
+  const value = new Intl.NumberFormat('ar-SA-u-nu-latn', {
     maximumFractionDigits: 2,
     minimumFractionDigits: 0,
   }).format(amount);

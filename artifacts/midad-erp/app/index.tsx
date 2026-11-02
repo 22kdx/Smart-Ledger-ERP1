@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors } from '@/hooks/useColors';
-import { AppText } from '../components/erp-ui';
+import { AppText, toEnglishDigits } from '../components/erp-ui';
 import { ERPFormSheet } from '../components/erp-form';
 import {
   DashboardScreen,
@@ -53,7 +53,7 @@ function ERPApp() {
       ...lowStock.slice(0, 4).map((product) => `مخزون منخفض: ${product.name} — المتبقي ${product.quantity}`),
       ...pendingInvoices.slice(0, 4).map((invoice) => `فاتورة مستحقة: ${invoice.number} — ${invoice.customer}`),
     ];
-    Alert.alert('تنبيهات مدار', notices.join('\n') || 'لا توجد تنبيهات جديدة حالياً.');
+    Alert.alert('تنبيهات مدار', toEnglishDigits(notices.join('\n') || 'لا توجد تنبيهات جديدة حالياً.'));
   };
 
   if (!hydrated) {

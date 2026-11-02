@@ -15,6 +15,7 @@ import {
   Card,
   CurrencyPicker,
   SectionHeading,
+  toEnglishDigits,
 } from './erp-ui';
 import {
   Currency,
@@ -74,8 +75,8 @@ function Field({
     <View style={settingsStyles.field}>
       <Text style={[settingsStyles.fieldLabel, { color: colors.foreground }]}>{label}</Text>
       <TextInput
-        value={value}
-        onChangeText={onChangeText}
+        value={toEnglishDigits(value)}
+        onChangeText={(text) => onChangeText(toEnglishDigits(text))}
         accessibilityLabel={label}
         placeholder={placeholder}
         placeholderTextColor={colors.mutedForeground}
@@ -224,8 +225,8 @@ function TaxRuleRow({
       <View style={settingsStyles.rateEditRow}>
         <View style={settingsStyles.rateInputWrap}>
           <TextInput
-            value={rateInput}
-            onChangeText={setRateInput}
+            value={toEnglishDigits(rateInput)}
+            onChangeText={(text) => setRateInput(toEnglishDigits(text))}
             accessibilityLabel={`نسبة ${rule.name}`}
             keyboardType="decimal-pad"
             style={[
@@ -709,7 +710,7 @@ export function CompanySettings() {
                 onRemove={() => {
                   Alert.alert(
                     'حذف سعر الصرف',
-                    `هل تريد حذف سعر ${rate.fromCurrency} إلى ${rate.toCurrency} بتاريخ ${rate.effectiveDate}؟`,
+                    toEnglishDigits(`هل تريد حذف سعر ${rate.fromCurrency} إلى ${rate.toCurrency} بتاريخ ${rate.effectiveDate}؟`),
                     [
                       { text: 'إلغاء', style: 'cancel' },
                       {

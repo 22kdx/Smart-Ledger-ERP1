@@ -235,6 +235,7 @@ function todayLabel() {
   return new Intl.DateTimeFormat('ar-SA-u-ca-gregory', {
     day: 'numeric',
     month: 'short',
+    numberingSystem: 'latn',
   }).format(new Date());
 }
 

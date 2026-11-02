@@ -20,6 +20,7 @@ import {
   Page,
   SectionHeading,
   Title,
+  toEnglishDigits,
 } from './erp-ui';
 import {
   Contact,
@@ -854,8 +855,8 @@ function SearchBox({
     <View style={[screenStyles.searchBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
       <Feather name="search" size={17} color={colors.mutedForeground} />
       <TextInput
-        value={value}
-        onChangeText={onChangeText}
+        value={toEnglishDigits(value)}
+        onChangeText={(text) => onChangeText(toEnglishDigits(text))}
         placeholder={placeholder}
         placeholderTextColor={colors.mutedForeground}
         style={[screenStyles.searchInput, { color: colors.foreground }]}

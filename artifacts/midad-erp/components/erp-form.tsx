@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { useColors } from '@/hooks/useColors';
-import { APP_FONTS, AppText, CurrencyPicker } from './erp-ui';
+import { APP_FONTS, AppText, CurrencyPicker, toEnglishDigits } from './erp-ui';
 import {
   ContactKind,
   Currency,
@@ -346,8 +346,8 @@ function Field({
     <View style={formStyles.field}>
       <Text style={[formStyles.fieldLabel, { color: colors.foreground }]}>{label}</Text>
       <TextInput
-        value={value}
-        onChangeText={onChangeText}
+        value={toEnglishDigits(value)}
+        onChangeText={(text) => onChangeText(toEnglishDigits(text))}
         placeholder={placeholder}
         placeholderTextColor={colors.mutedForeground}
         keyboardType={keyboardType ?? 'default'}

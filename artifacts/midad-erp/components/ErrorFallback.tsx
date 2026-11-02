@@ -12,7 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors } from '@/hooks/useColors';
 import { Feather } from '@expo/vector-icons';
 import { reloadAppAsync } from 'expo';
-import { AppText } from './erp-ui';
+import { AppText, toEnglishDigits } from './erp-ui';
 
 export type ErrorFallbackProps = {
   error: Error;
@@ -156,7 +156,7 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
                     ]}
                     selectable
                   >
-                    {formatErrorDetails()}
+                    {toEnglishDigits(formatErrorDetails())}
                   </Text>
                 </View>
               </ScrollView>

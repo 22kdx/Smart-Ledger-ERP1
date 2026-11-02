@@ -9,7 +9,7 @@
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- `DATABASE_URL` is for the user's own PostgreSQL server (or a local development database); never use Replit-managed database/storage or keep its value in project files or Replit secrets.
 
 ## Stack
 
@@ -39,7 +39,11 @@
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Business settings that can differ between companies (name, country, base/allowed currencies, taxes, exchange rates, base prices/price lists, fiscal year, and similar values) must be editable per company; sample defaults must never be silently treated as confirmed business policy.
+- All app network requests go through one API client. It reads the single `API_BASE_URL` value from a runtime-editable configuration file, changeable without rebuilding; screens must not contain server URLs or make direct requests.
+- The user's own server is the only permanent data source. Local storage is a cache/offline layer only, and unsynced changes must remain identifiable and protected until the server confirms them.
+- Keep the app and API portable for manual transfer to the user's VPS after the app is complete. Do not depend on Replit-only database, auth, secrets, file paths, or automatic deployment; do not publish without the user's explicit request.
+- At final delivery, add a root `README.md` with build/run steps, the API client functions and expected API fields, runtime URL configuration, and VPS transfer instructions.
 
 ## Product
 

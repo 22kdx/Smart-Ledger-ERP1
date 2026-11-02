@@ -11,10 +11,9 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
+import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import { useColors } from '@/hooks/useColors';
-import type { Currency } from './erp-store';
-
-export const CURRENCIES: Currency[] = ['SAR', 'YER', 'USD'];
+import type { Currency, CurrencyOption } from './erp-store';
 
 export const APP_FONTS = {
   arabic: {
@@ -60,7 +59,8 @@ export function AppText({ children, style, ...props }: TextProps) {
 export function currencyLabel(currency: Currency) {
   if (currency === 'SAR') return 'ر.س';
   if (currency === 'YER') return 'ر.ي';
-  return 'دولار';
+  if (currency === 'USD') return 'دولار';
+  return currency;
 }
 
 export function formatMoney(amount: number, currency: Currency) {
@@ -74,11 +74,26 @@ export function formatMoney(amount: number, currency: Currency) {
 export function Page({
   children,
   contentStyle,
+  keyboardAware = false,
 }: {
   children: React.ReactNode;
   contentStyle?: StyleProp<ViewStyle>;
+  keyboardAware?: boolean;
 }) {
   const colors = useColors();
+  if (keyboardAware) {
+    return (
+      <KeyboardAwareScrollViewCompat
+        style={{ flex: 1, backgroundColor: colors.background }}
+        contentContainerStyle={[styles.pageContent, contentStyle]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        bottomOffset={80}
+      >
+        {children}
+      </KeyboardAwareScrollViewCompat>
+    );
+  }
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: colors.background }}
@@ -175,10 +190,12 @@ export function SectionHeading({
 export function CurrencyPicker({
   value,
   onChange,
+  currencies,
   compact = false,
 }: {
   value: Currency;
   onChange: (currency: Currency) => void;
+  currencies: CurrencyOption[];
   compact?: boolean;
 }) {
   const colors = useColors();
@@ -190,34 +207,42 @@ export function CurrencyPicker({
         { backgroundColor: compact ? 'rgba(255,255,255,0.12)' : colors.muted },
       ]}
     >
-      {CURRENCIES.map((currency) => {
-        const active = value === currency;
-        return (
-          <Pressable
-            key={currency}
-            accessibilityRole="button"
-            accessibilityState={{ selected: active }}
-            onPress={() => onChange(currency)}
-            style={[
-              styles.currencyOption,
-              compact && styles.currencyOptionCompact,
-              active && {
-                backgroundColor: compact ? 'rgba(255,255,255,0.2)' : colors.card,
-              },
-            ]}
-          >
-            <AppText
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.currencyOptions}
+        keyboardShouldPersistTaps="handled"
+      >
+        {currencies.map((currency) => {
+          const active = value === currency.code;
+          return (
+            <Pressable
+              key={currency.code}
+              accessibilityRole="button"
+              accessibilityState={{ selected: active }}
+              accessibilityLabel={`اختيار ${currency.name} ${currency.code}`}
+              onPress={() => onChange(currency.code)}
               style={[
-                styles.currencyText,
-                { color: compact ? colors.primaryForeground : colors.mutedForeground },
-                active && { color: compact ? colors.primaryForeground : colors.primary, fontWeight: '700' },
+                styles.currencyOption,
+                compact && styles.currencyOptionCompact,
+                active && {
+                  backgroundColor: compact ? 'rgba(255,255,255,0.2)' : colors.card,
+                },
               ]}
             >
-              {currency}
-            </AppText>
-          </Pressable>
-        );
-      })}
+              <AppText
+                style={[
+                  styles.currencyText,
+                  { color: compact ? colors.primaryForeground : colors.mutedForeground },
+                  active && { color: compact ? colors.primaryForeground : colors.primary, fontWeight: '700' },
+                ]}
+              >
+                {currency.code}
+              </AppText>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
     </View>
   );
 }
@@ -320,7 +345,9 @@ export const styles = StyleSheet.create({
     borderRadius: 14,
     padding: 3,
     gap: 3,
+    maxWidth: '100%',
   },
+  currencyOptions: { flexDirection: 'row-reverse', gap: 3 },
   currencyPickerCompact: {
     alignSelf: 'flex-start',
   },

@@ -33,6 +33,7 @@ import {
   getAccountBalances,
   useERP,
 } from './erp-store';
+import { CompanySettings } from './company-settings';
 
 const Text = AppText;
 
@@ -176,7 +177,12 @@ export function DashboardScreen({
             <Text style={screenStyles.balanceEyebrow}>الرصيد النقدي</Text>
             <Text style={screenStyles.balanceAmount}>{formatMoney(totals.balance, currency)}</Text>
           </View>
-          <CurrencyPicker value={currency} onChange={updateBaseCurrency} compact />
+          <CurrencyPicker
+            value={currency}
+            onChange={updateBaseCurrency}
+            currencies={data.currencies.filter((option) => option.isActive)}
+            compact
+          />
         </View>
         <View style={screenStyles.balanceFooter}>
           <View style={screenStyles.balanceTrend}>
@@ -464,7 +470,11 @@ export function FinanceScreen({ onAdd }: { onAdd: (type: FormType) => void }) {
           <Text style={[screenStyles.currencyCardTitle, { color: colors.foreground }]}>عملة العرض</Text>
           <Text style={[screenStyles.currencyCardHint, { color: colors.mutedForeground }]}>الأرقام لا تجمع بين عملات مختلفة</Text>
         </View>
-        <CurrencyPicker value={data.baseCurrency} onChange={updateBaseCurrency} />
+        <CurrencyPicker
+          value={data.baseCurrency}
+          onChange={updateBaseCurrency}
+          currencies={data.currencies.filter((option) => option.isActive)}
+        />
       </Card>
       <View style={screenStyles.metricsGrid}>
         <Metric label="الإيرادات" amount={income} currency={data.baseCurrency} icon="trending-up" positive />
@@ -587,7 +597,11 @@ export function FinanceScreen({ onAdd }: { onAdd: (type: FormType) => void }) {
               <Text style={[screenStyles.currencyCardTitle, { color: colors.foreground }]}>عملة التقرير</Text>
               <Text style={[screenStyles.currencyCardHint, { color: colors.mutedForeground }]}>من بداية السجلات</Text>
             </View>
-            <CurrencyPicker value={data.baseCurrency} onChange={updateBaseCurrency} />
+            <CurrencyPicker
+              value={data.baseCurrency}
+              onChange={updateBaseCurrency}
+              currencies={data.currencies.filter((option) => option.isActive)}
+            />
           </Card>
           <Card style={screenStyles.reportCard}>
             <SectionHeading title="قائمة الدخل" />
@@ -726,14 +740,12 @@ function accountTypeLabel(type: (typeof DEFAULT_ACCOUNTS)[number]['type']) {
 
 export function MoreScreen({ onAdd }: { onAdd: (type: FormType) => void }) {
   const colors = useColors();
-  const { data, updateBaseCurrency, updateTaxRate, updateCompanyName } = useERP();
+  const { data } = useERP();
   const customers = data.contacts.filter((contact) => contact.kind === 'customer');
   const suppliers = data.contacts.filter((contact) => contact.kind === 'supplier');
-  const [companyNameInput, setCompanyNameInput] = useState(data.companyName);
-  const [taxInput, setTaxInput] = useState(String(data.taxRate));
 
   return (
-    <Page>
+    <Page keyboardAware>
       <ScreenHeader eyebrow="إدارة المنشأة" title="المزيد" detail="الأشخاص والموظفون وإعدادات الشركة" />
       <Card style={screenStyles.companyCard}>
         <View style={[screenStyles.companyMark, { backgroundColor: colors.primary }]}>
@@ -793,82 +805,7 @@ export function MoreScreen({ onAdd }: { onAdd: (type: FormType) => void }) {
           </Pressable>
         </Card>
       </View>
-      <View style={screenStyles.sectionBlock}>
-        <SectionHeading title="إعدادات المنشأة" />
-        <Card style={screenStyles.settingsCard}>
-          <Text style={[screenStyles.currencyCardTitle, { color: colors.foreground }]}>اسم المنشأة</Text>
-          <TextInput
-            value={companyNameInput}
-            onChangeText={setCompanyNameInput}
-            accessibilityLabel="اسم المنشأة"
-            placeholder="أدخل اسم المنشأة"
-            placeholderTextColor={colors.mutedForeground}
-            style={[
-              screenStyles.companyNameInput,
-              { backgroundColor: colors.muted, borderColor: colors.border, color: colors.foreground },
-            ]}
-            textAlign="right"
-          />
-          <Pressable
-            accessibilityRole="button"
-            testID="save-company-name"
-            onPress={() => {
-              const name = companyNameInput.trim();
-              if (name) updateCompanyName(name);
-              else setCompanyNameInput(data.companyName);
-            }}
-            style={({ pressed }) => [
-              screenStyles.saveSetting,
-              { backgroundColor: colors.secondary, opacity: pressed ? 0.65 : 1 },
-            ]}
-          >
-            <Feather name="check" size={15} color={colors.primary} />
-            <Text style={[screenStyles.saveSettingText, { color: colors.primary }]}>حفظ الاسم</Text>
-          </Pressable>
-          <View style={[screenStyles.settingDivider, { backgroundColor: colors.border }]} />
-          <Text style={[screenStyles.currencyCardTitle, { color: colors.foreground }]}>العملة الأساسية</Text>
-          <CurrencyPicker value={data.baseCurrency} onChange={updateBaseCurrency} />
-          <View style={[screenStyles.settingDivider, { backgroundColor: colors.border }]} />
-          <View style={screenStyles.taxHeader}>
-            <View>
-              <Text style={[screenStyles.currencyCardTitle, { color: colors.foreground }]}>ضريبة القيمة المضافة</Text>
-              <Text style={[screenStyles.currencyCardHint, { color: colors.mutedForeground }]}>تُخصّص حسب متطلبات نشاطك</Text>
-            </View>
-            <View style={[screenStyles.taxInputWrap, { backgroundColor: colors.muted, borderColor: colors.border }]}>
-              <TextInput
-                value={taxInput}
-                onChangeText={setTaxInput}
-                keyboardType="decimal-pad"
-                accessibilityLabel="نسبة الضريبة"
-                style={[screenStyles.taxInput, { color: colors.foreground }]}
-                textAlign="center"
-              />
-              <Text style={[screenStyles.taxSign, { color: colors.mutedForeground }]}>%</Text>
-            </View>
-          </View>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => {
-              const parsed = Number(taxInput);
-              if (Number.isFinite(parsed) && parsed >= 0 && parsed <= 100) updateTaxRate(parsed);
-              else setTaxInput(String(data.taxRate));
-            }}
-            style={({ pressed }) => [
-              screenStyles.saveSetting,
-              { backgroundColor: colors.secondary, opacity: pressed ? 0.65 : 1 },
-            ]}
-          >
-            <Feather name="check" size={15} color={colors.primary} />
-            <Text style={[screenStyles.saveSettingText, { color: colors.primary }]}>حفظ النسبة</Text>
-          </Pressable>
-        </Card>
-      </View>
-      <View style={[screenStyles.localNote, { backgroundColor: colors.infoSoft }]}>
-        <Feather name="smartphone" size={16} color={colors.info} />
-        <Text style={[screenStyles.localNoteText, { color: colors.info }]}>
-          تحفظ هذه النسخة البيانات على هذا الجهاز فقط.
-        </Text>
-      </View>
+      <CompanySettings />
     </Page>
   );
 }

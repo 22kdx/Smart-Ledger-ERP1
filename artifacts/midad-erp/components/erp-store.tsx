@@ -2,7 +2,27 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 
-export type Currency = 'YER' | 'SAR' | 'USD';
+export type Currency = string;
+export type CurrencyOption = {
+  code: Currency;
+  name: string;
+  isActive: boolean;
+};
+export type TaxRule = {
+  id: string;
+  name: string;
+  rate: number;
+  countryCode: string | null;
+  isActive: boolean;
+};
+export type ExchangeRate = {
+  id: string;
+  fromCurrency: Currency;
+  toCurrency: Currency;
+  rate: number;
+  effectiveDate: string;
+  source: string;
+};
 export type InvoiceStatus = 'paid' | 'pending';
 export type EntryType = 'income' | 'expense';
 export type ContactKind = 'customer' | 'supplier';
@@ -86,7 +106,14 @@ export type ERPData = {
   employees: Employee[];
   contacts: Contact[];
   companyName: string;
+  countryCode: string | null;
   baseCurrency: Currency;
+  currencies: CurrencyOption[];
+  taxRules: TaxRule[];
+  exchangeRates: ExchangeRate[];
+  fiscalYearStartMonth: number | null;
+  fiscalYearStartDay: number | null;
+  /** Kept for compatibility with older app versions; taxRules is the source of truth. */
   taxRate: number;
 };
 
@@ -105,6 +132,12 @@ export type JournalEntryDraft = {
 
 const STORAGE_KEY = '@midad-erp/local-v1';
 
+export const DEFAULT_CURRENCIES: CurrencyOption[] = [
+  { code: 'SAR', name: 'الريال السعودي', isActive: true },
+  { code: 'YER', name: 'الريال اليمني', isActive: true },
+  { code: 'USD', name: 'الدولار الأمريكي', isActive: true },
+];
+
 export const DEFAULT_ACCOUNTS: Account[] = [
   { id: '1000', code: '1000', name: 'النقدية', type: 'asset' },
   { id: '1100', code: '1100', name: 'العملاء', type: 'asset' },
@@ -118,7 +151,13 @@ export const DEFAULT_ACCOUNTS: Account[] = [
 
 const seedData: Omit<ERPData, 'journalEntries'> = {
   companyName: 'مؤسسة مدار للتجارة',
+  countryCode: null,
   baseCurrency: 'SAR',
+  currencies: DEFAULT_CURRENCIES,
+  taxRules: [],
+  exchangeRates: [],
+  fiscalYearStartMonth: null,
+  fiscalYearStartDay: null,
   taxRate: 0,
   invoices: [
     { id: 'inv-01', number: 'INV-0248', customer: 'شركة الأفق', amount: 4850, currency: 'SAR', status: 'pending', date: 'اليوم' },
@@ -167,14 +206,138 @@ type ERPContextValue = {
   toggleInvoiceStatus: (id: string) => void;
   adjustProductStock: (id: string, amount: number) => void;
   updateBaseCurrency: (currency: Currency) => void;
-  updateTaxRate: (rate: number) => void;
   updateCompanyName: (name: string) => void;
+  updateCompanyProfile: (
+    companyName: string,
+    countryCode: string | null,
+    fiscalYearStartMonth: number | null,
+    fiscalYearStartDay: number | null,
+  ) => void;
+  addCurrency: (currency: Omit<CurrencyOption, 'isActive'>) => void;
+  setCurrencyActive: (code: Currency, isActive: boolean) => void;
+  addTaxRule: (rule: Omit<TaxRule, 'id'>) => void;
+  setTaxRuleActive: (id: string, isActive: boolean) => void;
+  updateTaxRuleRate: (id: string, rate: number) => void;
+  addExchangeRate: (rate: Omit<ExchangeRate, 'id'>) => void;
+  removeExchangeRate: (id: string) => void;
 };
 
 const ERPContext = createContext<ERPContextValue | null>(null);
 
 function createId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object';
+}
+
+function normalizeStoredCurrencies(
+  stored: unknown,
+  parsed: Partial<ERPData>,
+  baseCurrency: Currency,
+): CurrencyOption[] {
+  const currencies: CurrencyOption[] = Array.isArray(stored)
+    ? stored.flatMap((item): CurrencyOption[] => {
+        if (
+          !isRecord(item) ||
+          typeof item.code !== 'string' ||
+          !item.code.trim() ||
+          typeof item.name !== 'string'
+        ) {
+          return [];
+        }
+        return [{
+          code: item.code,
+          name: item.name,
+          isActive: item.isActive !== false,
+        }];
+      })
+    : DEFAULT_CURRENCIES.map((currency) => ({ ...currency }));
+  const normalized = currencies.length
+    ? currencies
+    : DEFAULT_CURRENCIES.map((currency) => ({ ...currency }));
+  const usedCurrencies = new Set<Currency>([baseCurrency]);
+  parsed.invoices?.forEach((item) => usedCurrencies.add(item.currency));
+  parsed.products?.forEach((item) => usedCurrencies.add(item.currency));
+  parsed.entries?.forEach((item) => usedCurrencies.add(item.currency));
+  parsed.employees?.forEach((item) => usedCurrencies.add(item.currency));
+  parsed.contacts?.forEach((item) => usedCurrencies.add(item.currency));
+  parsed.journalEntries?.forEach((entry) =>
+    entry.lines.forEach((line) => usedCurrencies.add(line.currency)),
+  );
+
+  usedCurrencies.forEach((code) => {
+    const existing = normalized.find((currency) => currency.code === code);
+    if (existing) {
+      if (code === baseCurrency) existing.isActive = true;
+      return;
+    }
+    normalized.push({ code, name: code, isActive: true });
+  });
+  return normalized;
+}
+
+function normalizeStoredTaxRules(stored: unknown, legacyTaxRate: number): TaxRule[] {
+  if (Array.isArray(stored)) {
+    return stored.flatMap((item): TaxRule[] => {
+      if (
+        !isRecord(item) ||
+        typeof item.id !== 'string' ||
+        typeof item.name !== 'string' ||
+        typeof item.rate !== 'number' ||
+        !Number.isFinite(item.rate)
+      ) {
+        return [];
+      }
+      return [{
+        id: item.id,
+        name: item.name,
+        rate: Math.min(100, Math.max(0, item.rate)),
+        countryCode: typeof item.countryCode === 'string' ? item.countryCode : null,
+        isActive: item.isActive !== false,
+      }];
+    });
+  }
+  if (legacyTaxRate > 0) {
+    return [{
+      id: 'legacy-tax-rule',
+      name: 'ضريبة القيمة المضافة',
+      rate: Math.min(100, Math.max(0, legacyTaxRate)),
+      countryCode: null,
+      isActive: true,
+    }];
+  }
+  return [];
+}
+
+function normalizeStoredExchangeRates(stored: unknown): ExchangeRate[] {
+  if (!Array.isArray(stored)) return [];
+  return stored.flatMap((item): ExchangeRate[] => {
+    if (
+      !isRecord(item) ||
+      typeof item.id !== 'string' ||
+      typeof item.fromCurrency !== 'string' ||
+      typeof item.toCurrency !== 'string' ||
+      typeof item.rate !== 'number' ||
+      !Number.isFinite(item.rate) ||
+      typeof item.effectiveDate !== 'string'
+    ) {
+      return [];
+    }
+    return [{
+      id: item.id,
+      fromCurrency: item.fromCurrency,
+      toCurrency: item.toCurrency,
+      rate: item.rate,
+      effectiveDate: item.effectiveDate,
+      source: typeof item.source === 'string' ? item.source : '',
+    }];
+  });
+}
+
+function legacyTaxRateFor(rules: TaxRule[]) {
+  return rules.find((rule) => rule.isActive)?.rate ?? 0;
 }
 
 function todayLabel() {
@@ -354,9 +517,39 @@ export function ERPProvider({ children }: { children: React.ReactNode }) {
           Array.isArray(parsed.contacts)
         ) {
           const entries = attachInvoiceReferences(parsed.invoices, parsed.entries);
+          const baseCurrency =
+            typeof parsed.baseCurrency === 'string' && parsed.baseCurrency.trim()
+              ? parsed.baseCurrency
+              : seedData.baseCurrency;
+          const legacyTaxRate =
+            typeof parsed.taxRate === 'number' && Number.isFinite(parsed.taxRate)
+              ? parsed.taxRate
+              : 0;
+          const taxRules = normalizeStoredTaxRules(parsed.taxRules, legacyTaxRate);
+          const storedFiscalMonth =
+            Number.isInteger(parsed.fiscalYearStartMonth) &&
+            parsed.fiscalYearStartMonth! >= 1 &&
+            parsed.fiscalYearStartMonth! <= 12
+              ? parsed.fiscalYearStartMonth!
+              : null;
+          const storedFiscalDay =
+            storedFiscalMonth !== null &&
+            Number.isInteger(parsed.fiscalYearStartDay) &&
+            parsed.fiscalYearStartDay! >= 1 &&
+            parsed.fiscalYearStartDay! <= new Date(2020, storedFiscalMonth, 0).getDate()
+              ? parsed.fiscalYearStartDay!
+              : null;
           setData({
             ...seedData,
             ...parsed,
+            countryCode: typeof parsed.countryCode === 'string' ? parsed.countryCode : null,
+            baseCurrency,
+            currencies: normalizeStoredCurrencies(parsed.currencies, parsed, baseCurrency),
+            taxRules,
+            exchangeRates: normalizeStoredExchangeRates(parsed.exchangeRates),
+            fiscalYearStartMonth: storedFiscalDay === null ? null : storedFiscalMonth,
+            fiscalYearStartDay: storedFiscalDay,
+            taxRate: legacyTaxRateFor(taxRules),
             entries,
             journalEntries: Array.isArray(parsed.journalEntries)
               ? parsed.journalEntries
@@ -487,9 +680,49 @@ export function ERPProvider({ children }: { children: React.ReactNode }) {
         ),
       }),
     updateBaseCurrency: (baseCurrency) => commit({ ...data, baseCurrency }),
-    updateTaxRate: (taxRate) =>
-      commit({ ...data, taxRate: Math.min(100, Math.max(0, taxRate)) }),
     updateCompanyName: (companyName) => commit({ ...data, companyName }),
+    updateCompanyProfile: (companyName, countryCode, fiscalYearStartMonth, fiscalYearStartDay) =>
+      commit({ ...data, companyName, countryCode, fiscalYearStartMonth, fiscalYearStartDay }),
+    addCurrency: (currency) =>
+      commit({
+        ...data,
+        currencies: [...data.currencies, { ...currency, isActive: true }],
+      }),
+    setCurrencyActive: (code, isActive) => {
+      if (!isActive && code === data.baseCurrency) return;
+      commit({
+        ...data,
+        currencies: data.currencies.map((currency) =>
+          currency.code === code ? { ...currency, isActive } : currency,
+        ),
+      });
+    },
+    addTaxRule: (rule) => {
+      const taxRules = [{ ...rule, id: createId() }, ...data.taxRules];
+      commit({ ...data, taxRules, taxRate: legacyTaxRateFor(taxRules) });
+    },
+    setTaxRuleActive: (id, isActive) => {
+      const taxRules = data.taxRules.map((rule) =>
+        rule.id === id ? { ...rule, isActive } : rule,
+      );
+      commit({ ...data, taxRules, taxRate: legacyTaxRateFor(taxRules) });
+    },
+    updateTaxRuleRate: (id, rate) => {
+      const taxRules = data.taxRules.map((rule) =>
+        rule.id === id ? { ...rule, rate } : rule,
+      );
+      commit({ ...data, taxRules, taxRate: legacyTaxRateFor(taxRules) });
+    },
+    addExchangeRate: (rate) =>
+      commit({
+        ...data,
+        exchangeRates: [{ ...rate, id: createId() }, ...data.exchangeRates],
+      }),
+    removeExchangeRate: (id) =>
+      commit({
+        ...data,
+        exchangeRates: data.exchangeRates.filter((rate) => rate.id !== id),
+      }),
   };
 
   return <ERPContext.Provider value={value}>{children}</ERPContext.Provider>;

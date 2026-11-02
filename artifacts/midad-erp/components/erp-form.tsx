@@ -55,6 +55,7 @@ export function ERPFormSheet({
     addJournalEntry,
     data,
   } = useERP();
+  const currencies = data.currencies.filter((option) => option.isActive);
   const [fields, setFields] = useState<Record<string, string>>(emptyFields);
   const [currency, setCurrency] = useState<Currency>(data.baseCurrency);
   const [invoicePaid, setInvoicePaid] = useState(false);
@@ -65,13 +66,17 @@ export function ERPFormSheet({
   useEffect(() => {
     if (visible) {
       setFields(emptyFields);
-      setCurrency(data.baseCurrency);
+      setCurrency(
+        currencies.some((option) => option.code === data.baseCurrency)
+          ? data.baseCurrency
+          : currencies[0]?.code ?? data.baseCurrency,
+      );
       setInvoicePaid(false);
       setDebitAccountId('1000');
       setCreditAccountId('4000');
       setMessage('');
     }
-  }, [data.baseCurrency, type, visible]);
+  }, [data.baseCurrency, data.currencies, type, visible]);
 
   if (!type) return null;
 
@@ -216,7 +221,7 @@ export function ERPFormSheet({
               <>
                 <Field label="اسم العميل" value={fields.name} onChangeText={(value) => setField('name', value)} placeholder="مثال: شركة الأفق" colors={colors} />
                 <Field label="مبلغ الفاتورة" value={fields.amount} onChangeText={(value) => setField('amount', value)} placeholder="0.00" keyboardType="decimal-pad" colors={colors} />
-                <CurrencyPicker value={currency} onChange={setCurrency} />
+                <CurrencyPicker value={currency} onChange={setCurrency} currencies={currencies} />
                 <ChoiceRow
                   label="حالة الفاتورة"
                   options={[['pending', 'مستحقة'], ['paid', 'مدفوعة']]}
@@ -244,7 +249,7 @@ export function ERPFormSheet({
                     <Field label="سعر الوحدة" value={fields.price} onChangeText={(value) => setField('price', value)} placeholder="0.00" keyboardType="decimal-pad" colors={colors} />
                   </View>
                 </View>
-                <CurrencyPicker value={currency} onChange={setCurrency} />
+                <CurrencyPicker value={currency} onChange={setCurrency} currencies={currencies} />
               </>
             ) : null}
             {type === 'income' || type === 'expense' ? (
@@ -252,7 +257,7 @@ export function ERPFormSheet({
                 <Field label="وصف الحركة" value={fields.name} onChangeText={(value) => setField('name', value)} placeholder={type === 'income' ? 'مثال: تحصيل من عميل' : 'مثال: شراء مستلزمات'} colors={colors} />
                 <Field label="التصنيف" value={fields.category} onChangeText={(value) => setField('category', value)} placeholder={type === 'income' ? 'إيرادات أخرى' : 'مصروفات تشغيلية'} colors={colors} />
                 <Field label="المبلغ" value={fields.amount} onChangeText={(value) => setField('amount', value)} placeholder="0.00" keyboardType="decimal-pad" colors={colors} />
-                <CurrencyPicker value={currency} onChange={setCurrency} />
+                <CurrencyPicker value={currency} onChange={setCurrency} currencies={currencies} />
               </>
             ) : null}
             {type === 'journal' ? (
@@ -271,7 +276,7 @@ export function ERPFormSheet({
                   onChange={setCreditAccountId}
                   colors={colors}
                 />
-                <CurrencyPicker value={currency} onChange={setCurrency} />
+                <CurrencyPicker value={currency} onChange={setCurrency} currencies={currencies} />
               </>
             ) : null}
             {type === 'employee' ? (
@@ -279,14 +284,14 @@ export function ERPFormSheet({
                 <Field label="اسم الموظف" value={fields.name} onChangeText={(value) => setField('name', value)} placeholder="الاسم الكامل" colors={colors} />
                 <Field label="المسمى الوظيفي" value={fields.role} onChangeText={(value) => setField('role', value)} placeholder="مثال: محاسب" colors={colors} />
                 <Field label="الراتب الشهري" value={fields.salary} onChangeText={(value) => setField('salary', value)} placeholder="0.00" keyboardType="decimal-pad" colors={colors} />
-                <CurrencyPicker value={currency} onChange={setCurrency} />
+                <CurrencyPicker value={currency} onChange={setCurrency} currencies={currencies} />
               </>
             ) : null}
             {type === 'customer' || type === 'supplier' ? (
               <>
                 <Field label={type === 'customer' ? 'اسم العميل' : 'اسم المورد'} value={fields.name} onChangeText={(value) => setField('name', value)} placeholder="الاسم أو اسم المنشأة" colors={colors} />
                 <Field label="رقم الهاتف" value={fields.phone} onChangeText={(value) => setField('phone', value)} placeholder="اختياري" keyboardType="phone-pad" colors={colors} />
-                <CurrencyPicker value={currency} onChange={setCurrency} />
+                <CurrencyPicker value={currency} onChange={setCurrency} currencies={currencies} />
               </>
             ) : null}
             {needsMoney ? (

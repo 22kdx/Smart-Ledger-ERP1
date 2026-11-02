@@ -188,6 +188,15 @@ pnpm --filter @workspace/api-server run dev
 pnpm --filter @workspace/api-server run test:auth
 ```
 
+لاختبار مستودع PostgreSQL ومسارات المصادقة فعليًا، أنشئ قاعدة محلية فارغة مخصصة للاختبار فقط، واسمها ينتهي بـ`_test`. نفّذ `pnpm --filter @workspace/db run push` عليها ثم ملف الترحيل أعلاه، وبعدها شغّل:
+
+```sh
+TEST_DATABASE_URL='postgresql://USER@127.0.0.1:5432/tamm_auth_test' \
+  pnpm --filter @workspace/api-server run test:auth:postgres
+```
+
+يرفض اختبار PostgreSQL المضيف غير المحلي، واسم القاعدة الذي لا ينتهي بـ`_test`، وأي قاعدة تحتوي سجلات مصادقة أو منشآت. لا توجّه هذا الاختبار إلى قاعدة مستخدمة أو إنتاجية؛ فهو ينشئ سجلات اختبار ويحذفها بعد اكتماله.
+
 وفي نافذة طرفية ثانية، اختبر دخولًا محليًا عبر HTTP:
 
 ```sh

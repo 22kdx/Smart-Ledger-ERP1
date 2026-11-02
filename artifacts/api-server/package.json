@@ -8,7 +8,8 @@
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test:auth": "tsx --test src/auth/auth.test.ts tests/custom-fetch.test.ts"
+    "test:auth": "tsx --test src/auth/auth.test.ts tests/custom-fetch.test.ts",
+    "test:auth:postgres": "tsx --test tests/postgres-auth.integration.test.ts"
   },
   "dependencies": {
     "@workspace/api-zod": "workspace:*",

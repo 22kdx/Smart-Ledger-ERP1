@@ -1,3 +1,4 @@
-- [نطاق مدار ERP](midad-erp-scope.md) — التطبيق موجّه لمختلف الأنشطة ويدعم الريال اليمني والريال السعودي والدولار.
+- [نطاق TAMM ERP](midad-erp-scope.md) — التطبيق موجّه لمختلف الأنشطة ويدعم الريال اليمني والريال السعودي والدولار.
 - [RTL في Expo](expo-rtl.md) — اتجاه الويب يُضبط على عنصر HTML الجذري؛ خاصية `direction` غير صالحة في أنماط React Native Web.
-- [مصادقة مدار ERP](midad-erp-auth.md) — مصادقة داخلية في API؛ لا Keycloak ولا Clerk، وOry فقط إذا طلب المستخدم ذلك لاحقًا.
+- [مصادقة TAMM ERP](midad-erp-auth.md) — مصادقة داخلية في API؛ لا Keycloak ولا Clerk، وOry فقط إذا طلب المستخدم ذلك لاحقًا.
+- [PostgreSQL الاختباري المؤقت](local-postgres-test.md) — وجّه Unix socket إلى مجلد الاختبار المؤقت؛ المسار الافتراضي `/run/postgresql` غير متاح.

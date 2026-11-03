@@ -1,6 +1,7 @@
 import type {
   Currency,
   CurrencyOption,
+  Account,
   ERPData,
   Entry,
   ExchangeRate,
@@ -124,6 +125,37 @@ function normalizeStoredExchangeRates(stored: unknown): ExchangeRate[] {
   });
 }
 
+const accountTypes = new Set(['asset', 'liability', 'equity', 'revenue', 'expense']);
+
+function normalizeStoredAccounts(stored: unknown, defaults: Account[]): Account[] {
+  const accounts = Array.isArray(stored)
+    ? stored.flatMap((item): Account[] => {
+        if (
+          !isRecord(item) ||
+          typeof item.id !== 'string' ||
+          typeof item.code !== 'string' ||
+          typeof item.name !== 'string' ||
+          typeof item.type !== 'string' ||
+          !accountTypes.has(item.type)
+        ) {
+          return [];
+        }
+        return [{
+          id: item.id,
+          code: item.code,
+          name: item.name,
+          type: item.type as Account['type'],
+          isActive: item.isActive !== false,
+          parentAccountId:
+            typeof item.parentAccountId === 'string' ? item.parentAccountId : null,
+        }];
+      })
+    : [];
+  const merged = new Map(defaults.map((account) => [account.id, { ...account }]));
+  accounts.forEach((account) => merged.set(account.id, account));
+  return [...merged.values()];
+}
+
 export function legacyTaxRateFor(rules: TaxRule[]) {
   return rules.find((rule) => rule.isActive)?.rate ?? 0;
 }
@@ -183,6 +215,7 @@ export async function loadERPData(
   return {
     ...fallbackData,
     ...parsed,
+    accounts: normalizeStoredAccounts(parsed.accounts, fallbackData.accounts),
     countryCode: typeof parsed.countryCode === 'string' ? parsed.countryCode : null,
     baseCurrency,
     currencies: normalizeStoredCurrencies(
@@ -198,7 +231,21 @@ export async function loadERPData(
     taxRate: legacyTaxRateFor(taxRules),
     entries,
     journalEntries: Array.isArray(parsed.journalEntries)
-      ? parsed.journalEntries
+      ? (parsed.journalEntries.map((item, index) => {
+          if (!isRecord(item)) return item;
+          const status =
+            item.status === 'draft' || item.status === 'reversed' || item.status === 'posted'
+              ? item.status
+              : 'posted';
+          return {
+            ...item,
+            entryNumber:
+              typeof item.entryNumber === 'string'
+                ? item.entryNumber
+                : `JE-${String(parsed.journalEntries!.length - index).padStart(5, '0')}`,
+            status,
+          };
+        }) as JournalEntry[])
       : buildInitialJournal(parsed.invoices, entries),
   };
 }

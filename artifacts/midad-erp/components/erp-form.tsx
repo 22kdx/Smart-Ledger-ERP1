@@ -13,12 +13,13 @@ import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollV
 import { useColors } from '@/hooks/useColors';
 import { APP_FONTS, AppText, CurrencyPicker, toEnglishDigits } from './erp-ui';
 import {
+  AccountType,
   ContactKind,
   Currency,
-  DEFAULT_ACCOUNTS,
   EntryType,
   useERP,
 } from './erp-store';
+import { isValidIsoDate } from './accounting-utils';
 import { FormType, formTitle } from './erp-screens';
 
 const Text = AppText;
@@ -34,7 +35,28 @@ const emptyFields: Record<string, string> = {
   role: '',
   phone: '',
   title: '',
+  code: '',
+  date: '',
 };
+
+type JournalFormLine = {
+  id: string;
+  accountId: string;
+  side: 'debit' | 'credit';
+  amount: string;
+};
+
+function todayIso() {
+  const date = new Date();
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function parseMoney(value: string): number | null {
+  const normalized = value.replaceAll(',', '').trim();
+  if (!/^\d+(?:\.\d{1,2})?$/.test(normalized)) return null;
+  const amount = Number(normalized);
+  return Number.isSafeInteger(Math.round(amount * 100)) ? amount : null;
+}
 
 export function ERPFormSheet({
   type,
@@ -53,27 +75,31 @@ export function ERPFormSheet({
     addEmployee,
     addContact,
     addJournalEntry,
+    addAccount,
     data,
   } = useERP();
   const currencies = data.currencies.filter((option) => option.isActive);
   const [fields, setFields] = useState<Record<string, string>>(emptyFields);
   const [currency, setCurrency] = useState<Currency>(data.baseCurrency);
   const [invoicePaid, setInvoicePaid] = useState(false);
-  const [debitAccountId, setDebitAccountId] = useState('1000');
-  const [creditAccountId, setCreditAccountId] = useState('4000');
+  const [journalLines, setJournalLines] = useState<JournalFormLine[]>([]);
+  const [accountType, setAccountType] = useState<AccountType>('asset');
   const [message, setMessage] = useState('');
 
   useEffect(() => {
     if (visible) {
-      setFields(emptyFields);
+      setFields({ ...emptyFields, date: todayIso() });
       setCurrency(
         currencies.some((option) => option.code === data.baseCurrency)
           ? data.baseCurrency
           : currencies[0]?.code ?? data.baseCurrency,
       );
       setInvoicePaid(false);
-      setDebitAccountId('1000');
-      setCreditAccountId('4000');
+      setJournalLines([
+        { id: 'line-1', accountId: '1000', side: 'debit', amount: '' },
+        { id: 'line-2', accountId: '4000', side: 'credit', amount: '' },
+      ]);
+      setAccountType('asset');
       setMessage('');
     }
   }, [data.baseCurrency, data.currencies, type, visible]);
@@ -85,25 +111,87 @@ export function ERPFormSheet({
     setMessage('');
   };
 
+  const updateJournalLine = (id: string, update: Partial<JournalFormLine>) => {
+    setJournalLines((current) =>
+      current.map((line) => (line.id === id ? { ...line, ...update } : line)),
+    );
+    setMessage('');
+  };
+
+  const addJournalLine = () => {
+    const firstActive = data.accounts.find((account) => account.isActive !== false);
+    if (!firstActive) {
+      setMessage('أضف حساباً نشطاً إلى دليل الحسابات أولاً.');
+      return;
+    }
+    setJournalLines((current) => [
+      ...current,
+      {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        accountId: firstActive.id,
+        side: current.filter((line) => line.side === 'debit').length <= current.filter((line) => line.side === 'credit').length
+          ? 'debit'
+          : 'credit',
+        amount: '',
+      },
+    ]);
+    setMessage('');
+  };
+
   const handleSubmit = () => {
     const numeric = (value: string) => Number(value.replaceAll(',', '').trim());
     if (type === 'journal') {
-      const amount = numeric(fields.amount);
-      if (!fields.name.trim() || !Number.isFinite(amount) || amount <= 0) {
-        setMessage('أدخل وصف القيد ومبلغاً صحيحاً أكبر من صفر.');
+      const lines = journalLines.map((line) => ({
+        ...line,
+        parsedAmount: parseMoney(line.amount),
+      }));
+      const debitTotal = lines
+        .filter((line) => line.side === 'debit')
+        .reduce((sum, line) => sum + Math.round((line.parsedAmount ?? 0) * 100), 0);
+      const creditTotal = lines
+        .filter((line) => line.side === 'credit')
+        .reduce((sum, line) => sum + Math.round((line.parsedAmount ?? 0) * 100), 0);
+      const accountsUsed = new Set(lines.map((line) => line.accountId));
+      if (!fields.name.trim() || !isValidIsoDate(fields.date)) {
+        setMessage('أدخل وصف القيد وتاريخاً صحيحاً.');
         return;
       }
-      if (debitAccountId === creditAccountId) {
-        setMessage('اختر حسابين مختلفين للقيد المدين والدائن.');
+      if (lines.length < 2 || lines.some((line) => line.parsedAmount === null || line.parsedAmount <= 0)) {
+        setMessage('أضف سطرين على الأقل، وأدخل مبلغاً صحيحاً لكل سطر.');
+        return;
+      }
+      if (accountsUsed.size < 2) {
+        setMessage('اختر حسابين مختلفين على الأقل.');
+        return;
+      }
+      if (debitTotal !== creditTotal) {
+        setMessage('إجمالي المدين لا يساوي إجمالي الدائن.');
         return;
       }
       addJournalEntry({
         description: fields.name.trim(),
-        debitAccountId,
-        creditAccountId,
-        amount,
+        date: fields.date,
+        lines: lines.map((line) => ({
+          accountId: line.accountId,
+          side: line.side,
+          amount: line.parsedAmount!,
+        })),
         currency,
       });
+    } else if (type === 'account') {
+      if (!fields.code.trim() || !fields.name.trim()) {
+        setMessage('أدخل رمز الحساب واسمه.');
+        return;
+      }
+      if (
+        data.accounts.some(
+          (account) => account.code.toLowerCase() === fields.code.trim().toLowerCase(),
+        )
+      ) {
+        setMessage('رمز الحساب مستخدم بالفعل. أدخل رمزاً مختلفاً.');
+        return;
+      }
+      addAccount({ code: fields.code.trim(), name: fields.name.trim(), type: accountType });
     } else if (type === 'invoice') {
       const amount = numeric(fields.amount);
       if (!fields.name.trim() || !Number.isFinite(amount) || amount <= 0) {
@@ -173,16 +261,18 @@ export function ERPFormSheet({
   const needsMoney = ['invoice', 'income', 'expense', 'product', 'employee', 'journal'].includes(type);
   const primaryLabel =
     type === 'journal'
-      ? 'ترحيل القيد'
-      : type === 'invoice'
-        ? 'حفظ الفاتورة'
-        : type === 'product'
-          ? 'إضافة الصنف'
-          : type === 'employee'
-            ? 'حفظ بيانات الموظف'
-            : type === 'customer' || type === 'supplier'
-              ? 'حفظ جهة الاتصال'
-              : 'حفظ الحركة';
+      ? 'حفظ كمسودة'
+      : type === 'account'
+        ? 'إضافة الحساب'
+        : type === 'invoice'
+          ? 'حفظ الفاتورة'
+          : type === 'product'
+            ? 'إضافة الصنف'
+            : type === 'employee'
+              ? 'حفظ بيانات الموظف'
+              : type === 'customer' || type === 'supplier'
+                ? 'حفظ جهة الاتصال'
+                : 'حفظ الحركة';
 
   return (
     <Modal
@@ -263,20 +353,69 @@ export function ERPFormSheet({
             {type === 'journal' ? (
               <>
                 <Field label="وصف القيد" value={fields.name} onChangeText={(value) => setField('name', value)} placeholder="مثال: إيداع رأس المال" colors={colors} />
-                <Field label="المبلغ" value={fields.amount} onChangeText={(value) => setField('amount', value)} placeholder="0.00" keyboardType="decimal-pad" colors={colors} />
-                <AccountPicker
-                  label="الحساب المدين"
-                  value={debitAccountId}
-                  onChange={setDebitAccountId}
-                  colors={colors}
-                />
-                <AccountPicker
-                  label="الحساب الدائن"
-                  value={creditAccountId}
-                  onChange={setCreditAccountId}
-                  colors={colors}
-                />
+                <Field label="تاريخ القيد" value={fields.date} onChangeText={(value) => setField('date', toEnglishDigits(value))} placeholder="YYYY-MM-DD" colors={colors} />
+                <View style={formStyles.journalLinesHeader}>
+                  <Text style={[formStyles.fieldLabel, { color: colors.foreground }]}>بنود القيد</Text>
+                  <Text style={[formStyles.currencyHint, { color: colors.mutedForeground }]}>
+                    المدين: {journalLines.filter((line) => line.side === 'debit').reduce((sum, line) => sum + (parseMoney(line.amount) ?? 0), 0).toFixed(2)}
+                    {'  '}الدائن: {journalLines.filter((line) => line.side === 'credit').reduce((sum, line) => sum + (parseMoney(line.amount) ?? 0), 0).toFixed(2)}
+                  </Text>
+                </View>
+                {journalLines.map((line, index) => (
+                  <View key={line.id} style={[formStyles.journalLineCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                    <View style={formStyles.journalLineHeader}>
+                      <Text style={[formStyles.journalLineTitle, { color: colors.foreground }]}>السطر {index + 1}</Text>
+                      {journalLines.length > 2 ? (
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={`حذف السطر ${index + 1}`}
+                          onPress={() => setJournalLines((current) => current.filter((item) => item.id !== line.id))}
+                          style={formStyles.removeLineButton}
+                        >
+                          <Feather name="trash-2" size={15} color={colors.warning} />
+                        </Pressable>
+                      ) : null}
+                    </View>
+                    <ChoiceRow
+                      label="الطرف"
+                      options={[['debit', 'مدين'], ['credit', 'دائن']]}
+                      value={line.side}
+                      onChange={(value) => updateJournalLine(line.id, { side: value as 'debit' | 'credit' })}
+                    />
+                    <AccountPicker
+                      label="الحساب"
+                      value={line.accountId}
+                      accounts={data.accounts.filter((account) => account.isActive !== false)}
+                      onChange={(accountId) => updateJournalLine(line.id, { accountId })}
+                      colors={colors}
+                    />
+                    <Field
+                      label="المبلغ"
+                      value={line.amount}
+                      onChangeText={(amount) => updateJournalLine(line.id, { amount: toEnglishDigits(amount) })}
+                      placeholder="0.00"
+                      keyboardType="decimal-pad"
+                      colors={colors}
+                    />
+                  </View>
+                ))}
+                <Pressable
+                  accessibilityRole="button"
+                  testID="add-journal-line"
+                  onPress={addJournalLine}
+                  style={[formStyles.addLineButton, { backgroundColor: colors.secondary }]}
+                >
+                  <Feather name="plus" size={15} color={colors.primary} />
+                  <Text style={[formStyles.addLineText, { color: colors.primary }]}>إضافة سطر</Text>
+                </Pressable>
                 <CurrencyPicker value={currency} onChange={setCurrency} currencies={currencies} />
+              </>
+            ) : null}
+            {type === 'account' ? (
+              <>
+                <Field label="رمز الحساب" value={fields.code} onChangeText={(value) => setField('code', value)} placeholder="مثال: 5100" colors={colors} />
+                <Field label="اسم الحساب" value={fields.name} onChangeText={(value) => setField('name', value)} placeholder="مثال: مصروفات الإيجار" colors={colors} />
+                <AccountTypePicker value={accountType} onChange={setAccountType} />
               </>
             ) : null}
             {type === 'employee' ? (
@@ -409,11 +548,13 @@ function ChoiceRow({
 function AccountPicker({
   label,
   value,
+  accounts,
   onChange,
   colors,
 }: {
   label: string;
   value: string;
+  accounts: Array<{ id: string; code: string; name: string }>;
   onChange: (value: string) => void;
   colors: ReturnType<typeof useColors>;
 }) {
@@ -421,7 +562,7 @@ function AccountPicker({
     <View style={formStyles.field}>
       <Text style={[formStyles.fieldLabel, { color: colors.foreground }]}>{label}</Text>
       <View style={formStyles.accountOptions}>
-        {DEFAULT_ACCOUNTS.map((account) => {
+        {accounts.map((account) => {
           const selected = value === account.id;
           return (
             <Pressable
@@ -454,6 +595,55 @@ function AccountPicker({
   );
 }
 
+function AccountTypePicker({
+  value,
+  onChange,
+}: {
+  value: AccountType;
+  onChange: (type: AccountType) => void;
+}) {
+  const colors = useColors();
+  const options: [AccountType, string][] = [
+    ['asset', 'أصول'],
+    ['liability', 'التزامات'],
+    ['equity', 'حقوق ملكية'],
+    ['revenue', 'إيرادات'],
+    ['expense', 'مصروفات'],
+  ];
+  return (
+    <View style={formStyles.field}>
+      <Text style={[formStyles.fieldLabel, { color: colors.foreground }]}>نوع الحساب</Text>
+      <View style={formStyles.accountTypeOptions}>
+        {options.map(([type, label]) => {
+          const selected = value === type;
+          return (
+            <Pressable
+              key={type}
+              accessibilityRole="button"
+              accessibilityState={{ selected }}
+              onPress={() => onChange(type)}
+              style={[
+                formStyles.accountTypeOption,
+                {
+                  backgroundColor: selected ? colors.primary : colors.card,
+                  borderColor: selected ? colors.primary : colors.border,
+                },
+              ]}
+            >
+              <Text style={[
+                formStyles.accountTypeOptionText,
+                { color: selected ? colors.primaryForeground : colors.mutedForeground },
+              ]}>
+                {label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
 const formStyles = StyleSheet.create({
   overlay: { flex: 1, justifyContent: 'flex-end' },
   sheet: { maxHeight: '90%', minHeight: '58%', borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, paddingTop: 9, overflow: 'hidden' },
@@ -476,6 +666,16 @@ const formStyles = StyleSheet.create({
   accountOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
   accountOption: { flexBasis: '48%', minHeight: 40, borderWidth: 1, borderRadius: 12, justifyContent: 'center', paddingHorizontal: 9 },
   accountOptionText: { fontSize: 10, fontWeight: '700', textAlign: 'right', writingDirection: 'rtl' },
+  journalLinesHeader: { gap: 5 },
+  journalLineCard: { borderWidth: 1, borderRadius: 14, padding: 11, gap: 12 },
+  journalLineHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  journalLineTitle: { fontSize: 12, fontWeight: '700', textAlign: 'right', writingDirection: 'rtl' },
+  removeLineButton: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
+  addLineButton: { minHeight: 42, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
+  addLineText: { fontSize: 12, fontWeight: '700', textAlign: 'center', writingDirection: 'rtl' },
+  accountTypeOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
+  accountTypeOption: { flexBasis: '48%', minHeight: 42, borderWidth: 1, borderRadius: 12, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
+  accountTypeOptionText: { fontSize: 11, fontWeight: '700', textAlign: 'center', writingDirection: 'rtl' },
   currencyHint: { fontSize: 10, textAlign: 'right', writingDirection: 'rtl' },
   errorBox: { flexDirection: 'row', alignItems: 'center', gap: 7, padding: 11, borderRadius: 12 },
   errorText: { flex: 1, fontSize: 11, textAlign: 'right', writingDirection: 'rtl' },

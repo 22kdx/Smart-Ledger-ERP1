@@ -2,6 +2,17 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 import {
+  Account,
+  AccountType,
+  getAccountBalances as calculateAccountBalances,
+  isJournalBalanced,
+  isValidIsoDate,
+  JournalEntry,
+  JournalLine,
+  JournalStatus,
+  nextJournalNumber,
+} from './accounting-utils';
+import {
   legacyTaxRateFor,
   loadERPData,
   saveERPData,
@@ -31,30 +42,7 @@ export type ExchangeRate = {
 export type InvoiceStatus = 'paid' | 'pending';
 export type EntryType = 'income' | 'expense';
 export type ContactKind = 'customer' | 'supplier';
-export type AccountType = 'asset' | 'liability' | 'equity' | 'revenue' | 'expense';
-
-export type Account = {
-  id: string;
-  code: string;
-  name: string;
-  type: AccountType;
-};
-
-export type JournalLine = {
-  accountId: string;
-  debit: number;
-  credit: number;
-  currency: Currency;
-};
-
-export type JournalEntry = {
-  id: string;
-  description: string;
-  date: string;
-  lines: JournalLine[];
-  sourceType: 'invoice' | 'payment' | 'transaction' | 'manual';
-  sourceId?: string;
-};
+export type { Account, AccountType, JournalEntry, JournalLine, JournalStatus } from './accounting-utils';
 
 export type Invoice = {
   id: string;
@@ -108,6 +96,7 @@ export type ERPData = {
   products: Product[];
   entries: Entry[];
   journalEntries: JournalEntry[];
+  accounts: Account[];
   employees: Employee[];
   contacts: Contact[];
   companyName: string;
@@ -129,11 +118,16 @@ export type EmployeeDraft = Omit<Employee, 'id'>;
 export type ContactDraft = Omit<Contact, 'id'>;
 export type JournalEntryDraft = {
   description: string;
-  debitAccountId: string;
-  creditAccountId: string;
-  amount: number;
+  date: string;
+  lines: Array<{
+    accountId: string;
+    side: 'debit' | 'credit';
+    amount: number;
+    memo?: string;
+  }>;
   currency: Currency;
 };
+export type AccountDraft = Omit<Account, 'id' | 'isActive'>;
 
 export const DEFAULT_CURRENCIES: CurrencyOption[] = [
   { code: 'SAR', name: 'الريال السعودي', isActive: true },
@@ -142,14 +136,14 @@ export const DEFAULT_CURRENCIES: CurrencyOption[] = [
 ];
 
 export const DEFAULT_ACCOUNTS: Account[] = [
-  { id: '1000', code: '1000', name: 'النقدية', type: 'asset' },
-  { id: '1100', code: '1100', name: 'العملاء', type: 'asset' },
-  { id: '1200', code: '1200', name: 'المخزون', type: 'asset' },
-  { id: '2000', code: '2000', name: 'الموردون', type: 'liability' },
-  { id: '3000', code: '3000', name: 'رأس المال', type: 'equity' },
-  { id: '4000', code: '4000', name: 'إيرادات المبيعات', type: 'revenue' },
-  { id: '4100', code: '4100', name: 'إيرادات أخرى', type: 'revenue' },
-  { id: '5000', code: '5000', name: 'مصروفات تشغيلية', type: 'expense' },
+  { id: '1000', code: '1000', name: 'النقدية', type: 'asset', isActive: true },
+  { id: '1100', code: '1100', name: 'العملاء', type: 'asset', isActive: true },
+  { id: '1200', code: '1200', name: 'المخزون', type: 'asset', isActive: true },
+  { id: '2000', code: '2000', name: 'الموردون', type: 'liability', isActive: true },
+  { id: '3000', code: '3000', name: 'رأس المال', type: 'equity', isActive: true },
+  { id: '4000', code: '4000', name: 'إيرادات المبيعات', type: 'revenue', isActive: true },
+  { id: '4100', code: '4100', name: 'إيرادات أخرى', type: 'revenue', isActive: true },
+  { id: '5000', code: '5000', name: 'مصروفات تشغيلية', type: 'expense', isActive: true },
 ];
 
 const seedData: Omit<ERPData, 'journalEntries'> = {
@@ -189,6 +183,7 @@ const seedData: Omit<ERPData, 'journalEntries'> = {
     { id: 'emp-02', name: 'سارة محمد', role: 'محاسبة', salary: 5200, currency: 'SAR' },
     { id: 'emp-03', name: 'خالد صالح', role: 'أمين مستودع', salary: 4300, currency: 'SAR' },
   ],
+  accounts: DEFAULT_ACCOUNTS.map((account) => ({ ...account })),
   contacts: [
     { id: 'con-01', name: 'شركة الأفق', kind: 'customer', phone: '+966 55 203 8410', currency: 'SAR' },
     { id: 'con-02', name: 'متجر النخبة', kind: 'customer', phone: '+967 73 516 2840', currency: 'YER' },
@@ -204,6 +199,11 @@ type ERPContextValue = {
   addProduct: (draft: ProductDraft) => void;
   addEntry: (draft: EntryDraft) => void;
   addJournalEntry: (draft: JournalEntryDraft) => void;
+  addAccount: (draft: AccountDraft) => void;
+  setAccountActive: (id: string, isActive: boolean) => void;
+  postJournalEntry: (id: string) => void;
+  deleteJournalDraft: (id: string) => void;
+  reverseJournalEntry: (id: string, reversalDate: string) => void;
   addEmployee: (draft: EmployeeDraft) => void;
   addContact: (draft: ContactDraft) => void;
   toggleInvoiceStatus: (id: string) => void;
@@ -239,12 +239,21 @@ function todayLabel() {
   }).format(new Date());
 }
 
+function todayIso() {
+  const date = new Date();
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
 function nextInvoiceNumber(invoices: Invoice[]) {
   const highestNumber = invoices.reduce((highest, invoice) => {
     const match = invoice.number.match(/^INV-(\d+)$/i);
     return match ? Math.max(highest, Number(match[1])) : highest;
   }, 0);
   return `INV-${String(highestNumber + 1).padStart(4, '0')}`;
+}
+
+function numberedJournal(entry: JournalEntry, current: JournalEntry[]): JournalEntry {
+  return { ...entry, entryNumber: nextJournalNumber(current) };
 }
 
 function invoicePaymentEntry(invoice: Invoice): Entry {
@@ -276,6 +285,7 @@ function invoiceIssueJournal(invoice: Invoice): JournalEntry {
     date: invoice.date,
     sourceType: 'invoice',
     sourceId: invoice.id,
+    status: 'posted',
     lines: [
       accountLine('1100', invoice.amount, 'debit', invoice.currency),
       accountLine('4000', invoice.amount, 'credit', invoice.currency),
@@ -290,6 +300,7 @@ function invoicePaymentJournal(invoice: Invoice): JournalEntry {
     date: invoice.date,
     sourceType: 'payment',
     sourceId: invoice.id,
+    status: 'posted',
     lines: [
       accountLine('1000', invoice.amount, 'debit', invoice.currency),
       accountLine('1100', invoice.amount, 'credit', invoice.currency),
@@ -306,6 +317,7 @@ function journalFromEntry(entry: Entry): JournalEntry {
     date: entry.date,
     sourceType: 'transaction',
     sourceId: entry.id,
+    status: 'posted',
     lines: isIncome
       ? [
           accountLine('1000', entry.amount, 'debit', entry.currency),
@@ -345,39 +357,19 @@ function buildInitialJournal(invoices: Invoice[], entries: Entry[]) {
     if (!consumedEntryIds.has(entry.id)) journalEntries.push(journalFromEntry(entry));
   });
 
-  return journalEntries;
+  return journalEntries.map((entry, index) => ({
+    ...entry,
+    entryNumber: `JE-${String(journalEntries.length - index).padStart(5, '0')}`,
+    status: 'posted' as const,
+  }));
 }
 
-export function getAccountBalances(journalEntries: JournalEntry[], currency: Currency) {
-  const totals: Record<string, { debit: number; credit: number }> = {};
-  DEFAULT_ACCOUNTS.forEach((account) => {
-    totals[account.id] = { debit: 0, credit: 0 };
-  });
-
-  journalEntries.forEach((journal) => {
-    journal.lines.forEach((line) => {
-      if (line.currency !== currency || !totals[line.accountId]) return;
-      totals[line.accountId].debit += line.debit;
-      totals[line.accountId].credit += line.credit;
-    });
-  });
-
-  return Object.fromEntries(
-    DEFAULT_ACCOUNTS.map((account) => {
-      const total = totals[account.id];
-      const debitNormal = account.type === 'asset' || account.type === 'expense';
-      const signed = total.debit - total.credit;
-      const balance = debitNormal ? signed : -signed;
-      return [
-        account.id,
-        {
-          debit: Math.max(signed, 0),
-          credit: Math.max(-signed, 0),
-          balance,
-        },
-      ];
-    }),
-  ) as Record<string, { debit: number; credit: number; balance: number }>;
+export function getAccountBalances(
+  journalEntries: JournalEntry[],
+  currency: Currency,
+  accounts: Account[] = DEFAULT_ACCOUNTS,
+) {
+  return calculateAccountBalances(journalEntries, currency, accounts);
 }
 
 export function ERPProvider({ children }: { children: React.ReactNode }) {
@@ -428,6 +420,17 @@ export function ERPProvider({ children }: { children: React.ReactNode }) {
         number: nextInvoiceNumber(data.invoices),
         date: todayLabel(),
       };
+      const issueJournal = numberedJournal(
+        invoiceIssueJournal(invoice),
+        data.journalEntries,
+      );
+      const paymentJournal =
+        invoice.status === 'paid'
+          ? numberedJournal(invoicePaymentJournal(invoice), [
+              issueJournal,
+              ...data.journalEntries,
+            ])
+          : null;
       commit({
         ...data,
         invoices: [invoice, ...data.invoices],
@@ -436,8 +439,8 @@ export function ERPProvider({ children }: { children: React.ReactNode }) {
             ? [invoicePaymentEntry(invoice), ...data.entries]
             : data.entries,
         journalEntries: [
-          ...(invoice.status === 'paid' ? [invoicePaymentJournal(invoice)] : []),
-          invoiceIssueJournal(invoice),
+          ...(paymentJournal ? [paymentJournal] : []),
+          issueJournal,
           ...data.journalEntries,
         ],
       });
@@ -449,26 +452,160 @@ export function ERPProvider({ children }: { children: React.ReactNode }) {
       commit({
         ...data,
         entries: [entry, ...data.entries],
-        journalEntries: [journalFromEntry(entry), ...data.journalEntries],
+        journalEntries: [
+          numberedJournal(journalFromEntry(entry), data.journalEntries),
+          ...data.journalEntries,
+        ],
       });
     },
     addJournalEntry: (draft) => {
-      const id = createId();
-      const date = todayLabel();
+      const lines: JournalLine[] = draft.lines.map((line) => ({
+        accountId: line.accountId,
+        debit: line.side === 'debit' ? line.amount : 0,
+        credit: line.side === 'credit' ? line.amount : 0,
+        currency: draft.currency,
+        memo: line.memo?.trim() || undefined,
+      }));
+      if (
+        !draft.description.trim() ||
+        !isValidIsoDate(draft.date) ||
+        !isJournalBalanced(lines) ||
+        lines.some((line) =>
+          !data.accounts.some(
+            (account) => account.id === line.accountId && account.isActive !== false,
+          ),
+        )
+      ) {
+        Alert.alert('تعذر حفظ القيد', 'راجع التاريخ والحسابات وتأكد من توازن المدين والدائن.');
+        return;
+      }
+      const entry: JournalEntry = {
+        id: createId(),
+        entryNumber: nextJournalNumber(data.journalEntries),
+        description: draft.description.trim(),
+        date: draft.date,
+        sourceType: 'manual',
+        status: 'draft',
+        lines,
+      };
+      commit({
+        ...data,
+        journalEntries: [entry, ...data.journalEntries],
+      });
+    },
+    addAccount: (draft) => {
+      const code = draft.code.trim();
+      const name = draft.name.trim();
+      if (
+        !code ||
+        code.length > 32 ||
+        !name ||
+        data.accounts.some(
+          (account) => account.code.toLowerCase() === code.toLowerCase(),
+        )
+      ) {
+        Alert.alert('تعذر إضافة الحساب', 'أدخل رمزًا واسمًا صحيحين، وتأكد أن الرمز غير مستخدم.');
+        return;
+      }
+      commit({
+        ...data,
+        accounts: [
+          ...data.accounts,
+          { ...draft, id: createId(), code, name, isActive: true },
+        ],
+      });
+    },
+    setAccountActive: (id, isActive) => {
+      if (
+        !isActive &&
+        data.journalEntries.some(
+          (entry) =>
+            entry.status !== 'draft' &&
+            entry.lines.some((line) => line.accountId === id),
+        )
+      ) {
+        Alert.alert(
+          'لا يمكن إيقاف الحساب',
+          'الحساب مستخدم في قيود مرحلة. أبقه نشطًا للمحافظة على السجل المحاسبي.',
+        );
+        return;
+      }
+      commit({
+        ...data,
+        accounts: data.accounts.map((account) =>
+          account.id === id ? { ...account, isActive } : account,
+        ),
+      });
+    },
+    postJournalEntry: (id) => {
+      const entry = data.journalEntries.find((item) => item.id === id);
+      if (!entry || entry.status !== 'draft') return;
+      if (
+        !isJournalBalanced(entry.lines) ||
+        entry.lines.some((line) =>
+          !data.accounts.some(
+            (account) => account.id === line.accountId && account.isActive !== false,
+          ),
+        )
+      ) {
+        Alert.alert('لا يمكن ترحيل القيد', 'راجع توازن القيد وحالة الحسابات المستخدمة.');
+        return;
+      }
+      commit({
+        ...data,
+        journalEntries: data.journalEntries.map((item) =>
+          item.id === id ? { ...item, status: 'posted' } : item,
+        ),
+      });
+    },
+    deleteJournalDraft: (id) => {
+      const entry = data.journalEntries.find((item) => item.id === id);
+      if (!entry || entry.status !== 'draft') return;
+      commit({
+        ...data,
+        journalEntries: data.journalEntries.filter((item) => item.id !== id),
+      });
+    },
+    reverseJournalEntry: (id, reversalDate) => {
+      const original = data.journalEntries.find((item) => item.id === id);
+      if (
+        !original ||
+        original.status !== 'posted' ||
+        !isValidIsoDate(reversalDate)
+      ) {
+        Alert.alert('تعذر عكس القيد', 'اختر قيدًا مرحلًا وأدخل تاريخًا صحيحًا للعكس.');
+        return;
+      }
+      if (
+        data.journalEntries.some(
+          (item) => item.reversalOfId === original.id,
+        )
+      ) {
+        Alert.alert('القيد معكوس مسبقًا', 'لا يمكن إنشاء أكثر من قيد عكسي للقيد نفسه.');
+        return;
+      }
+      const reversal: JournalEntry = {
+        id: createId(),
+        entryNumber: nextJournalNumber(data.journalEntries),
+        description: `عكس ${original.entryNumber ?? original.description}`,
+        date: reversalDate,
+        sourceType: 'reversal',
+        sourceId: original.id,
+        reversalOfId: original.id,
+        status: 'posted',
+        lines: original.lines.map((line) => ({
+          ...line,
+          debit: line.credit,
+          credit: line.debit,
+        })),
+      };
       commit({
         ...data,
         journalEntries: [
-          {
-            id: `manual-${id}`,
-            description: draft.description,
-            date,
-            sourceType: 'manual',
-            lines: [
-              accountLine(draft.debitAccountId, draft.amount, 'debit', draft.currency),
-              accountLine(draft.creditAccountId, draft.amount, 'credit', draft.currency),
-            ],
-          },
-          ...data.journalEntries,
+          reversal,
+          ...data.journalEntries.map((item) =>
+            item.id === id ? { ...item, status: 'reversed' as const } : item,
+          ),
         ],
       });
     },
@@ -483,26 +620,57 @@ export function ERPProvider({ children }: { children: React.ReactNode }) {
       const nextStatus: InvoiceStatus = invoice.status === 'paid' ? 'pending' : 'paid';
       const updatedInvoice = { ...invoice, status: nextStatus };
       const paymentEntry = findInvoicePayment(invoice, data.entries);
-      const nextEntries =
-        nextStatus === 'paid'
-          ? paymentEntry
-            ? data.entries
-            : [invoicePaymentEntry(updatedInvoice), ...data.entries]
-          : data.entries.filter((entry) => entry.invoiceId !== id);
-      const paymentSourceId = paymentEntry?.id;
-      const retainedJournalEntries = data.journalEntries.filter(
+      const paymentJournal = data.journalEntries.find(
         (journal) =>
-          !(
-            (journal.sourceType === 'payment' && journal.sourceId === id) ||
-            (journal.sourceType === 'transaction' && journal.sourceId === paymentSourceId)
-          ),
+          journal.status !== 'reversed' &&
+          ((journal.sourceType === 'payment' && journal.sourceId === id) ||
+            (journal.sourceType === 'transaction' && journal.sourceId === paymentEntry?.id)),
       );
-      const nextJournalEntries =
-        nextStatus === 'paid'
-          ? paymentEntry
-            ? data.journalEntries
-            : [invoicePaymentJournal(updatedInvoice), ...data.journalEntries]
-          : retainedJournalEntries;
+      let nextEntries = data.entries;
+      let nextJournalEntries = data.journalEntries;
+
+      if (nextStatus === 'paid') {
+        const createdPaymentEntry = paymentEntry ?? invoicePaymentEntry(updatedInvoice);
+        nextEntries = paymentEntry ? data.entries : [createdPaymentEntry, ...data.entries];
+        if (!paymentJournal) {
+          const createdPaymentJournal = numberedJournal(
+            paymentEntry
+              ? journalFromEntry(createdPaymentEntry)
+              : invoicePaymentJournal(updatedInvoice),
+            data.journalEntries,
+          );
+          nextJournalEntries = [createdPaymentJournal, ...data.journalEntries];
+        }
+      } else {
+        nextEntries = data.entries.filter(
+          (entry) => entry.invoiceId !== id && entry.id !== paymentEntry?.id,
+        );
+        if (paymentJournal) {
+          const reversal: JournalEntry = {
+            id: createId(),
+            entryNumber: nextJournalNumber(data.journalEntries),
+            description: `عكس تحصيل فاتورة ${invoice.number}`,
+            date: todayIso(),
+            sourceType: 'reversal',
+            sourceId: paymentJournal.id,
+            reversalOfId: paymentJournal.id,
+            status: 'posted',
+            lines: paymentJournal.lines.map((line) => ({
+              ...line,
+              debit: line.credit,
+              credit: line.debit,
+            })),
+          };
+          nextJournalEntries = [
+            reversal,
+            ...data.journalEntries.map((journal) =>
+              journal.id === paymentJournal.id
+                ? { ...journal, status: 'reversed' as const }
+                : journal,
+            ),
+          ];
+        }
+      }
 
       commit({
         ...data,

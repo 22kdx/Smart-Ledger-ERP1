@@ -2,6 +2,7 @@ import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useMemo, useState } from 'react';
 import {
+  Alert,
   Pressable,
   Image,
   StyleSheet,
@@ -25,6 +26,7 @@ import {
   toEnglishDigits,
 } from './erp-ui';
 import {
+  Account,
   Contact,
   Currency,
   Employee,
@@ -37,10 +39,11 @@ import {
   useERP,
 } from './erp-store';
 import { CompanySettings } from './company-settings';
+import { getGeneralLedgerRows, getTrialBalanceTotals } from './accounting-utils';
 
 const Text = AppText;
 
-export type FormType = 'invoice' | 'product' | 'income' | 'expense' | 'employee' | 'customer' | 'supplier' | 'journal';
+export type FormType = 'invoice' | 'product' | 'income' | 'expense' | 'employee' | 'customer' | 'supplier' | 'journal' | 'account';
 
 const typeLabels: Record<FormType, string> = {
   invoice: 'فاتورة مبيعات',
@@ -51,6 +54,7 @@ const typeLabels: Record<FormType, string> = {
   customer: 'عميل جديد',
   supplier: 'مورد جديد',
   journal: 'قيد يومية جديد',
+  account: 'حساب جديد',
 };
 
 function ScreenHeader({
@@ -159,12 +163,12 @@ export function DashboardScreen({
   const colors = useColors();
   const { data, updateBaseCurrency } = useERP();
   const currency = data.baseCurrency;
-  const balances = getAccountBalances(data.journalEntries, currency);
+  const balances = getAccountBalances(data.journalEntries, currency, data.accounts);
   const totals = useMemo(() => {
-    const income = DEFAULT_ACCOUNTS
+    const income = data.accounts
       .filter((account) => account.type === 'revenue')
       .reduce((sum, account) => sum + balances[account.id].balance, 0);
-    const expense = DEFAULT_ACCOUNTS
+    const expense = data.accounts
       .filter((account) => account.type === 'expense')
       .reduce((sum, account) => sum + balances[account.id].balance, 0);
     const sales = data.invoices.filter((invoice) => invoice.currency === currency).reduce((sum, invoice) => sum + invoice.amount, 0);
@@ -422,33 +426,65 @@ export function InventoryScreen({ onAdd }: { onAdd: (type: FormType) => void }) 
 
 export function FinanceScreen({ onAdd }: { onAdd: (type: FormType) => void }) {
   const colors = useColors();
-  const { data, updateBaseCurrency } = useERP();
+  const {
+    data,
+    updateBaseCurrency,
+    postJournalEntry,
+    deleteJournalDraft,
+    reverseJournalEntry,
+    setAccountActive,
+  } = useERP();
   const [filter, setFilter] = useState<'all' | 'income' | 'expense'>('all');
   const [view, setView] = useState<'overview' | 'accounts' | 'journal' | 'reports'>('overview');
-  const balances = getAccountBalances(data.journalEntries, data.baseCurrency);
-  const income = DEFAULT_ACCOUNTS
+  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
+  const balances = getAccountBalances(data.journalEntries, data.baseCurrency, data.accounts);
+  const selectedAccount = data.accounts.find((account) => account.id === selectedAccountId) ?? null;
+  const ledgerRows = selectedAccount
+    ? getGeneralLedgerRows(
+        data.journalEntries,
+        selectedAccount.id,
+        data.baseCurrency,
+        selectedAccount,
+      )
+    : [];
+  const income = data.accounts
     .filter((account) => account.type === 'revenue')
     .reduce((sum, account) => sum + balances[account.id].balance, 0);
-  const expense = DEFAULT_ACCOUNTS
+  const expense = data.accounts
     .filter((account) => account.type === 'expense')
     .reduce((sum, account) => sum + balances[account.id].balance, 0);
-  const assets = DEFAULT_ACCOUNTS
+  const assets = data.accounts
     .filter((account) => account.type === 'asset')
     .reduce((sum, account) => sum + balances[account.id].balance, 0);
-  const liabilities = DEFAULT_ACCOUNTS
+  const liabilities = data.accounts
     .filter((account) => account.type === 'liability')
     .reduce((sum, account) => sum + balances[account.id].balance, 0);
-  const equity = DEFAULT_ACCOUNTS
+  const equity = data.accounts
     .filter((account) => account.type === 'equity')
     .reduce((sum, account) => sum + balances[account.id].balance, 0);
   const currentProfit = income - expense;
-  const totalDebit = DEFAULT_ACCOUNTS.reduce((sum, account) => sum + balances[account.id].debit, 0);
-  const totalCredit = DEFAULT_ACCOUNTS.reduce((sum, account) => sum + balances[account.id].credit, 0);
+  const trialTotals = getTrialBalanceTotals(balances);
+  const totalDebit = trialTotals.debit;
+  const totalCredit = trialTotals.credit;
   const max = Math.max(income, expense, 1);
   const visibleEntries = data.entries.filter(
     (entry) =>
       entry.currency === data.baseCurrency && (filter === 'all' || entry.type === filter),
   );
+  const requestReverse = (journal: JournalEntry) => {
+    Alert.alert(
+      'عكس القيد',
+      `سيُنشأ قيد عكسي مرقّم بتاريخ اليوم للقيد ${journal.entryNumber ?? ''}. لن تُحذف الحركة الأصلية.`,
+      [
+        { text: 'إلغاء', style: 'cancel' },
+        {
+          text: 'إنشاء العكس',
+          style: 'destructive',
+          onPress: () => reverseJournalEntry(journal.id, new Date().toISOString().slice(0, 10)),
+        },
+      ],
+    );
+  };
 
   return (
     <Page>
@@ -558,20 +594,81 @@ export function FinanceScreen({ onAdd }: { onAdd: (type: FormType) => void }) {
       ) : null}
       {view === 'accounts' ? (
         <View style={screenStyles.sectionBlock}>
-          <SectionHeading title="دليل الحسابات" action={`${DEFAULT_ACCOUNTS.length} حسابات`} />
-          <Card style={screenStyles.listCard}>
-            {DEFAULT_ACCOUNTS.map((account, index) => (
-              <AccountBalanceRow
-                key={account.id}
-                account={account}
-                balance={balances[account.id].balance}
-                currency={data.baseCurrency}
-                last={index === DEFAULT_ACCOUNTS.length - 1}
-              />
-            ))}
-          </Card>
+          {selectedAccount ? (
+            <>
+              <Pressable
+                accessibilityRole="button"
+                testID="account-ledger-back"
+                onPress={() => setSelectedAccountId(null)}
+                style={screenStyles.backButton}
+              >
+                <Feather name="arrow-right" size={16} color={colors.primary} />
+                <Text style={[screenStyles.backButtonText, { color: colors.primary }]}>العودة إلى دليل الحسابات</Text>
+              </Pressable>
+              <SectionHeading title={`كشف حساب ${selectedAccount.name}`} />
+              <Card style={screenStyles.listCard}>
+                {ledgerRows.length === 0 ? (
+                  <EmptyState title="لا توجد حركات مرحّلة" detail="ستظهر هنا القيود المرحلة على هذا الحساب وبعملة التقرير." icon="book-open" />
+                ) : (
+                  ledgerRows.map((row, index) => (
+                    <View
+                      key={`${row.entryId}-${index}`}
+                      style={[
+                        screenStyles.ledgerRow,
+                        index < ledgerRows.length - 1 && {
+                          borderBottomColor: colors.border,
+                          borderBottomWidth: StyleSheet.hairlineWidth,
+                        },
+                      ]}
+                    >
+                      <View style={screenStyles.ledgerHeading}>
+                        <Text style={[screenStyles.rowTitle, { color: colors.foreground }]}>{row.description}</Text>
+                        <Text style={[screenStyles.rowSub, { color: colors.mutedForeground }]}>{row.entryNumber} · {row.date}</Text>
+                      </View>
+                      <View style={screenStyles.ledgerAmounts}>
+                        <Text style={[screenStyles.ledgerAmount, { color: colors.foreground }]}>مدين {formatMoney(row.debit, data.baseCurrency)}</Text>
+                        <Text style={[screenStyles.ledgerAmount, { color: colors.foreground }]}>دائن {formatMoney(row.credit, data.baseCurrency)}</Text>
+                        <Text style={[screenStyles.ledgerBalance, { color: colors.primary }]}>الرصيد {formatMoney(row.runningBalance, data.baseCurrency)}</Text>
+                      </View>
+                    </View>
+                  ))
+                )}
+              </Card>
+            </>
+          ) : (
+            <>
+              <SectionHeading title="دليل الحسابات" action={`${data.accounts.length} حساب`} />
+              <Pressable
+                accessibilityRole="button"
+                testID="add-account"
+                onPress={() => onAdd('account')}
+                style={({ pressed }) => [
+                  screenStyles.primaryButton,
+                  { backgroundColor: colors.primary, opacity: pressed ? 0.78 : 1 },
+                ]}
+              >
+                <Feather name="plus" size={18} color={colors.primaryForeground} />
+                <Text style={[screenStyles.primaryButtonText, { color: colors.primaryForeground }]}>إضافة حساب</Text>
+              </Pressable>
+              <Card style={screenStyles.listCard}>
+                {data.accounts.map((account, index) => (
+                  <AccountBalanceRow
+                    key={account.id}
+                    account={account}
+                    balance={balances[account.id]?.balance ?? 0}
+                    currency={data.baseCurrency}
+                    last={index === data.accounts.length - 1}
+                    onSelect={() => setSelectedAccountId(account.id)}
+                    onToggleActive={() =>
+                      setAccountActive(account.id, account.isActive === false)
+                    }
+                  />
+                ))}
+              </Card>
+            </>
+          )}
           <Text style={[screenStyles.currencyCardHint, { color: colors.mutedForeground }]}>
-            الأرصدة معروضة بعملة القيد، ولا يتم تحويل العملات تلقائياً.
+            الأرصدة لا تُحوّل بين العملات. كشف الحساب يعرض القيود المرحلة فقط.
           </Text>
         </View>
       ) : null}
@@ -599,7 +696,24 @@ export function FinanceScreen({ onAdd }: { onAdd: (type: FormType) => void }) {
                   key={journal.id}
                   journal={journal}
                   currency={data.baseCurrency}
+                  accounts={data.accounts}
                   last={index === data.journalEntries.length - 1}
+                  onPost={() => postJournalEntry(journal.id)}
+                  onDeleteDraft={() =>
+                    Alert.alert(
+                      'حذف المسودة',
+                      'سيُحذف القيد غير المرحّل فقط.',
+                      [
+                        { text: 'إلغاء', style: 'cancel' },
+                        {
+                          text: 'حذف',
+                          style: 'destructive',
+                          onPress: () => deleteJournalDraft(journal.id),
+                        },
+                      ],
+                    )
+                  }
+                  onReverse={() => requestReverse(journal)}
                 />
               ))}
             </Card>
@@ -640,17 +754,17 @@ export function FinanceScreen({ onAdd }: { onAdd: (type: FormType) => void }) {
                 <Text style={[screenStyles.trialAmount, { color: colors.mutedForeground, fontWeight: '800' }]}>دائن</Text>
               </View>
             </View>
-            {DEFAULT_ACCOUNTS.map((account) => (
+            {data.accounts.map((account) => (
               <View key={account.id} style={screenStyles.trialBalanceRow}>
                 <Text style={[screenStyles.trialAccountName, { color: colors.foreground }]}>
                   {account.code} · {account.name}
                 </Text>
                 <View style={screenStyles.trialAmounts}>
                   <Text style={[screenStyles.trialAmount, { color: colors.mutedForeground }]}>
-                    {formatMoney(balances[account.id].debit, data.baseCurrency)}
+                    {formatMoney(balances[account.id]?.debit ?? 0, data.baseCurrency)}
                   </Text>
                   <Text style={[screenStyles.trialAmount, { color: colors.mutedForeground }]}>
-                    {formatMoney(balances[account.id].credit, data.baseCurrency)}
+                    {formatMoney(balances[account.id]?.credit ?? 0, data.baseCurrency)}
                   </Text>
                 </View>
               </View>
@@ -662,6 +776,12 @@ export function FinanceScreen({ onAdd }: { onAdd: (type: FormType) => void }) {
                 <Text style={[screenStyles.trialAmount, { color: colors.foreground, fontWeight: '800' }]}>{formatMoney(totalCredit, data.baseCurrency)}</Text>
               </View>
             </View>
+              <Text style={[
+                screenStyles.currencyCardHint,
+                { color: trialTotals.isBalanced ? colors.success : colors.warning },
+              ]}>
+                {trialTotals.isBalanced ? 'الميزان متوازن' : 'يوجد فرق في ميزان المراجعة'}
+              </Text>
           </Card>
         </View>
       ) : null}
@@ -674,23 +794,53 @@ function AccountBalanceRow({
   balance,
   currency,
   last,
+  onSelect,
+  onToggleActive,
 }: {
-  account: (typeof DEFAULT_ACCOUNTS)[number];
+  account: Account;
   balance: number;
   currency: Currency;
   last: boolean;
+  onSelect: () => void;
+  onToggleActive: () => void;
 }) {
   const colors = useColors();
   return (
-    <View style={[screenStyles.listRow, !last && { borderBottomColor: colors.border, borderBottomWidth: StyleSheet.hairlineWidth }]}>
-      <View style={[screenStyles.rowIcon, { backgroundColor: colors.secondary }]}>
-        <Feather name="book" size={16} color={colors.primary} />
-      </View>
-      <View style={screenStyles.rowMain}>
-        <Text style={[screenStyles.rowTitle, { color: colors.foreground }]}>{account.name}</Text>
-        <Text style={[screenStyles.rowSub, { color: colors.mutedForeground }]}>{account.code} · {accountTypeLabel(account.type)}</Text>
-      </View>
-      <Text style={[screenStyles.rowAmount, { color: colors.foreground }]}>{formatMoney(balance, currency)}</Text>
+    <View style={[
+      screenStyles.listRow,
+      !last && { borderBottomColor: colors.border, borderBottomWidth: StyleSheet.hairlineWidth },
+    ]}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`كشف حساب ${account.name}`}
+        onPress={onSelect}
+        style={({ pressed }) => [screenStyles.accountRowMain, pressed && { opacity: 0.65 }]}
+      >
+        <View style={[screenStyles.rowIcon, { backgroundColor: colors.secondary }]}>
+          <Feather name="book" size={16} color={colors.primary} />
+        </View>
+        <View style={screenStyles.rowMain}>
+          <Text style={[screenStyles.rowTitle, { color: colors.foreground }]}>{account.name}</Text>
+          <Text style={[screenStyles.rowSub, { color: colors.mutedForeground }]}>
+            {account.code} · {accountTypeLabel(account.type)}{account.isActive === false ? ' · موقوف' : ''}
+          </Text>
+        </View>
+        <Text style={[screenStyles.rowAmount, { color: colors.foreground }]}>{formatMoney(balance, currency)}</Text>
+        <Feather name="chevron-left" size={16} color={colors.mutedForeground} />
+      </Pressable>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={account.isActive === false ? `تفعيل ${account.name}` : `إيقاف ${account.name}`}
+        onPress={onToggleActive}
+        style={({ pressed }) => [
+          screenStyles.accountToggle,
+          { backgroundColor: colors.muted, opacity: pressed ? 0.65 : 1 },
+        ]}
+      >
+        <Text style={[screenStyles.accountToggleText, { color: colors.mutedForeground }]}>
+          {account.isActive === false ? 'تفعيل' : 'إيقاف'}
+        </Text>
+      </Pressable>
     </View>
   );
 }
@@ -698,31 +848,95 @@ function AccountBalanceRow({
 function JournalEntryRow({
   journal,
   currency,
+  accounts,
   last,
+  onPost,
+  onDeleteDraft,
+  onReverse,
 }: {
   journal: JournalEntry;
   currency: Currency;
+  accounts: Account[];
   last: boolean;
+  onPost: () => void;
+  onDeleteDraft: () => void;
+  onReverse: () => void;
 }) {
   const colors = useColors();
-  const debit = journal.lines.find((line) => line.debit > 0);
-  const credit = journal.lines.find((line) => line.credit > 0);
-  const amount = debit?.debit ?? credit?.credit ?? 0;
-  const journalCurrency = debit?.currency ?? credit?.currency ?? currency;
-  const debitAccount = DEFAULT_ACCOUNTS.find((account) => account.id === debit?.accountId);
-  const creditAccount = DEFAULT_ACCOUNTS.find((account) => account.id === credit?.accountId);
+  const amount = journal.lines.reduce((sum, line) => sum + line.debit, 0);
+  const journalCurrency = journal.lines[0]?.currency ?? currency;
+  const status = journal.status ?? 'posted';
+  const statusText = status === 'draft' ? 'مسودة' : status === 'reversed' ? 'معكوس' : 'مرحّل';
+  const statusColor =
+    status === 'draft' ? colors.warning : status === 'reversed' ? colors.mutedForeground : colors.success;
   return (
-    <View style={[screenStyles.journalRow, !last && { borderBottomColor: colors.border, borderBottomWidth: StyleSheet.hairlineWidth }]}>
-      <View style={screenStyles.journalCopy}>
-        <Text style={[screenStyles.rowTitle, { color: colors.foreground }]}>{journal.description}</Text>
-        <Text style={[screenStyles.rowSub, { color: colors.mutedForeground }]}>مدين: {debitAccount?.name ?? '—'}</Text>
-        <Text style={[screenStyles.rowSub, { color: colors.mutedForeground }]}>دائن: {creditAccount?.name ?? '—'}</Text>
+    <View style={[screenStyles.journalCardRow, !last && { borderBottomColor: colors.border, borderBottomWidth: StyleSheet.hairlineWidth }]}>
+      <View style={screenStyles.journalRow}>
+        <View style={screenStyles.journalCopy}>
+          <Text style={[screenStyles.rowTitle, { color: colors.foreground }]}>{journal.description}</Text>
+          <Text style={[screenStyles.rowSub, { color: colors.mutedForeground }]}>
+            {journal.entryNumber ?? '—'} · {journal.date} · {journal.lines.length} سطر
+          </Text>
+          {journal.lines.slice(0, 3).map((line, index) => {
+            const account = accounts.find((item) => item.id === line.accountId);
+            const side = line.debit > 0 ? 'مدين' : 'دائن';
+            const lineAmount = line.debit > 0 ? line.debit : line.credit;
+            return (
+              <Text key={`${journal.id}-${index}`} style={[screenStyles.journalLineText, { color: colors.mutedForeground }]}>
+                {side}: {account?.name ?? 'حساب غير معروف'} · {formatMoney(lineAmount, line.currency)}
+              </Text>
+            );
+          })}
+          {journal.lines.length > 3 ? (
+            <Text style={[screenStyles.rowSub, { color: colors.mutedForeground }]}>و{journal.lines.length - 3} أسطر أخرى</Text>
+          ) : null}
+        </View>
+        <View style={screenStyles.journalAmount}>
+          <Text style={[screenStyles.rowAmount, { color: colors.primary }]}>{formatMoney(amount, journalCurrency)}</Text>
+          <Text style={[screenStyles.journalStatus, { color: statusColor }]}>{statusText}</Text>
+        </View>
       </View>
-      <View style={screenStyles.journalAmount}>
-        <Text style={[screenStyles.rowAmount, { color: colors.primary }]}>{formatMoney(amount, journalCurrency)}</Text>
-        <Text style={[screenStyles.rowSub, { color: colors.mutedForeground }]}>{journal.date}</Text>
-      </View>
+      {status === 'draft' ? (
+        <View style={screenStyles.journalActions}>
+          <JournalAction label="ترحيل" icon="check" onPress={onPost} primary />
+          <JournalAction label="حذف المسودة" icon="trash-2" onPress={onDeleteDraft} destructive />
+        </View>
+      ) : status === 'posted' ? (
+        <View style={screenStyles.journalActions}>
+          <JournalAction label="عكس القيد" icon="corner-up-left" onPress={onReverse} />
+        </View>
+      ) : null}
     </View>
+  );
+}
+
+function JournalAction({
+  label,
+  icon,
+  onPress,
+  primary = false,
+  destructive = false,
+}: {
+  label: string;
+  icon: keyof typeof Feather.glyphMap;
+  onPress: () => void;
+  primary?: boolean;
+  destructive?: boolean;
+}) {
+  const colors = useColors();
+  const color = destructive ? colors.warning : primary ? colors.primary : colors.mutedForeground;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [
+        screenStyles.journalActionButton,
+        { backgroundColor: primary ? colors.secondary : colors.muted, opacity: pressed ? 0.65 : 1 },
+      ]}
+    >
+      <Feather name={icon} size={13} color={color} />
+      <Text style={[screenStyles.journalActionText, { color }]}>{label}</Text>
+    </Pressable>
   );
 }
 
@@ -1142,9 +1356,25 @@ const screenStyles = StyleSheet.create({
   financeViews: { flexDirection: 'row', gap: 6 },
   financeView: { flex: 1, minHeight: 39, borderWidth: 1, borderRadius: 12, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
   financeViewText: { fontSize: 10, fontWeight: '700', textAlign: 'center', writingDirection: 'rtl' },
+  backButton: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 6, minHeight: 38 },
+  backButtonText: { fontSize: 12, fontWeight: '700', textAlign: 'right', writingDirection: 'rtl' },
+  ledgerRow: { paddingVertical: 12, gap: 8 },
+  ledgerHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  ledgerAmounts: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 6 },
+  ledgerAmount: { fontSize: 10, textAlign: 'right', writingDirection: 'rtl' },
+  ledgerBalance: { fontSize: 10, fontWeight: '700', textAlign: 'right', writingDirection: 'rtl' },
+  accountRowMain: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 9, paddingVertical: 7 },
+  accountToggle: { minWidth: 48, minHeight: 34, borderRadius: 9, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 7 },
+  accountToggleText: { fontSize: 9, fontWeight: '700', textAlign: 'center', writingDirection: 'rtl' },
+  journalCardRow: { paddingVertical: 12, gap: 9 },
   journalRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 13 },
   journalCopy: { flex: 1, minWidth: 0, alignItems: 'flex-start', gap: 5 },
+  journalLineText: { fontSize: 10, textAlign: 'right', writingDirection: 'rtl' },
   journalAmount: { alignItems: 'flex-start', gap: 5 },
+  journalStatus: { fontSize: 10, fontWeight: '700', textAlign: 'right', writingDirection: 'rtl' },
+  journalActions: { flexDirection: 'row', justifyContent: 'flex-start', gap: 7 },
+  journalActionButton: { minHeight: 34, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 10, paddingHorizontal: 10 },
+  journalActionText: { fontSize: 10, fontWeight: '700', textAlign: 'center', writingDirection: 'rtl' },
   reportCard: { gap: 12 },
   reportRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
   reportLabel: { fontSize: 12, textAlign: 'right', writingDirection: 'rtl' },

@@ -27,6 +27,16 @@ const fallbackData = {
   entries: [],
   employees: [],
   contacts: [],
+  accounts: [
+    { id: '1000', code: '1000', name: 'النقدية', type: 'asset', isActive: true },
+    { id: '1100', code: '1100', name: 'العملاء', type: 'asset', isActive: true },
+    { id: '1200', code: '1200', name: 'المخزون', type: 'asset', isActive: true },
+    { id: '2000', code: '2000', name: 'الموردون', type: 'liability', isActive: true },
+    { id: '3000', code: '3000', name: 'رأس المال', type: 'equity', isActive: true },
+    { id: '4000', code: '4000', name: 'إيرادات المبيعات', type: 'revenue', isActive: true },
+    { id: '4100', code: '4100', name: 'إيرادات أخرى', type: 'revenue', isActive: true },
+    { id: '5000', code: '5000', name: 'مصروفات تشغيلية', type: 'expense', isActive: true },
+  ],
 };
 
 function createMemoryStorage(initialValue = null) {

@@ -21,3 +21,4 @@ export * from "./organization";
 export * from "./auth";
 export * from "./accounting";
 export * from "./operations";
+export * from "./settings";

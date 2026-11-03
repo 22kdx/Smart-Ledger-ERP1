@@ -208,6 +208,71 @@ export interface Company {
   role: CompanyRole;
 }
 
+export interface CompanyCurrencySetting {
+  code: Currency;
+  isEnabled: boolean;
+}
+
+export interface CompanySettings {
+  companyId: string;
+  name: string;
+  /** @nullable */
+  countryCode: string | null;
+  baseCurrency: Currency | null;
+  timezone: string;
+  /**
+     * @minimum 1
+     * @maximum 12
+     * @nullable
+     */
+  fiscalYearStartMonth: number | null;
+  /**
+     * @minimum 1
+     * @maximum 31
+     * @nullable
+     */
+  fiscalYearStartDay: number | null;
+  currencies: CompanyCurrencySetting[];
+}
+
+export interface CompanySettingsCurrencyUpdate {
+  code: Currency;
+  isEnabled: boolean;
+}
+
+export interface CompanySettingsUpdate {
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  name?: string;
+  /**
+     * @nullable
+     * @pattern ^[A-Za-z]{2}$
+     */
+  countryCode?: string | null;
+  baseCurrency?: Currency | null;
+  /** @maxLength 64 */
+  timezone?: string;
+  /**
+     * @minimum 1
+     * @maximum 12
+     * @nullable
+     */
+  fiscalYearStartMonth?: number | null;
+  /**
+     * @minimum 1
+     * @maximum 31
+     * @nullable
+     */
+  fiscalYearStartDay?: number | null;
+  /**
+     * @minItems 1
+     * @maxItems 50
+     */
+  currencies?: CompanySettingsCurrencyUpdate[];
+}
+
 export type AccountCreateType = typeof AccountCreateType[keyof typeof AccountCreateType];
 
 

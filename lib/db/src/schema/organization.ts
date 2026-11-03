@@ -1,8 +1,10 @@
+import { sql } from "drizzle-orm";
 import {
   integer,
   numeric,
   pgEnum,
   pgTable,
+  check,
   text,
   timestamp,
   uniqueIndex,
@@ -27,10 +29,25 @@ export const companies = pgTable("companies", {
   baseCurrency: text("base_currency"),
   taxRate: numeric("tax_rate", { precision: 7, scale: 4 }),
   timezone: text("timezone").notNull().default("UTC"),
+  fiscalYearStartMonth: integer("fiscal_year_start_month"),
+  fiscalYearStartDay: integer("fiscal_year_start_day"),
   nextJournalNumber: integer("next_journal_number").notNull().default(1),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => [
+  check(
+    "companies_fiscal_year_start_month_check",
+    sql`${table.fiscalYearStartMonth} IS NULL OR ${table.fiscalYearStartMonth} BETWEEN 1 AND 12`,
+  ),
+  check(
+    "companies_fiscal_year_start_day_check",
+    sql`${table.fiscalYearStartDay} IS NULL OR ${table.fiscalYearStartDay} BETWEEN 1 AND 31`,
+  ),
+  check(
+    "companies_fiscal_year_start_pair_check",
+    sql`(${table.fiscalYearStartMonth} IS NULL) = (${table.fiscalYearStartDay} IS NULL)`,
+  ),
+]);
 
 export const companyMemberships = pgTable(
   "company_memberships",

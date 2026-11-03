@@ -9,7 +9,8 @@
     "start": "node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test:auth": "tsx --test src/auth/auth.test.ts tests/custom-fetch.test.ts",
-    "test:auth:postgres": "tsx --test tests/postgres-auth.integration.test.ts"
+    "test:auth:postgres": "tsx --test tests/postgres-auth.integration.test.ts",
+    "test:settings:postgres": "tsx --test src/settings/postgres-repository.integration.test.ts"
   },
   "dependencies": {
     "@workspace/api-zod": "workspace:*",

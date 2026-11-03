@@ -370,6 +370,95 @@ export const GetCompanyAuthorizationResponse = zod.object({
 
 
 /**
+ * @summary Read company profile and currency options
+ */
+export const GetCompanySettingsParams = zod.object({
+  "companyId": zod.coerce.string().uuid()
+})
+
+export const getCompanySettingsResponseBaseCurrencyOneRegExp = new RegExp('^[A-Z]{3}$');
+export const getCompanySettingsResponseFiscalYearStartMonthMax = 12;
+
+export const getCompanySettingsResponseFiscalYearStartDayMax = 31;
+
+export const getCompanySettingsResponseCurrenciesItemCodeRegExp = new RegExp('^[A-Z]{3}$');
+
+
+export const GetCompanySettingsResponse = zod.object({
+  "companyId": zod.string().uuid(),
+  "name": zod.string(),
+  "countryCode": zod.string().nullable(),
+  "baseCurrency": zod.union([zod.string().regex(getCompanySettingsResponseBaseCurrencyOneRegExp).describe('رمز عملة من ثلاثة أحرف، وتُحدد العملات المتاحة لكل منشأة من إعداداتها.'),zod.null()]),
+  "timezone": zod.string(),
+  "fiscalYearStartMonth": zod.number().int().min(1).max(getCompanySettingsResponseFiscalYearStartMonthMax).nullable(),
+  "fiscalYearStartDay": zod.number().int().min(1).max(getCompanySettingsResponseFiscalYearStartDayMax).nullable(),
+  "currencies": zod.array(zod.object({
+  "code": zod.string().regex(getCompanySettingsResponseCurrenciesItemCodeRegExp).describe('رمز عملة من ثلاثة أحرف، وتُحدد العملات المتاحة لكل منشأة من إعداداتها.'),
+  "isEnabled": zod.boolean()
+}))
+})
+
+
+/**
+ * Currency patches merge by code; omitted currencies remain unchanged. Does not calculate taxes or convert balances.
+ * @summary Update company profile and currency options
+ */
+export const UpdateCompanySettingsParams = zod.object({
+  "companyId": zod.coerce.string().uuid()
+})
+
+export const updateCompanySettingsBodyNameMax = 160;
+
+export const updateCompanySettingsBodyCountryCodeRegExp = new RegExp('^[A-Za-z]{2}$');
+export const updateCompanySettingsBodyBaseCurrencyOneRegExp = new RegExp('^[A-Z]{3}$');
+export const updateCompanySettingsBodyTimezoneMax = 64;
+
+export const updateCompanySettingsBodyFiscalYearStartMonthMax = 12;
+
+export const updateCompanySettingsBodyFiscalYearStartDayMax = 31;
+
+export const updateCompanySettingsBodyCurrenciesItemCodeRegExp = new RegExp('^[A-Z]{3}$');
+export const updateCompanySettingsBodyCurrenciesMax = 50;
+
+
+
+export const UpdateCompanySettingsBody = zod.object({
+  "name": zod.string().min(1).max(updateCompanySettingsBodyNameMax).optional(),
+  "countryCode": zod.string().regex(updateCompanySettingsBodyCountryCodeRegExp).nullish(),
+  "baseCurrency": zod.union([zod.string().regex(updateCompanySettingsBodyBaseCurrencyOneRegExp).describe('رمز عملة من ثلاثة أحرف، وتُحدد العملات المتاحة لكل منشأة من إعداداتها.'),zod.null()]).optional(),
+  "timezone": zod.string().max(updateCompanySettingsBodyTimezoneMax).optional(),
+  "fiscalYearStartMonth": zod.number().int().min(1).max(updateCompanySettingsBodyFiscalYearStartMonthMax).nullish(),
+  "fiscalYearStartDay": zod.number().int().min(1).max(updateCompanySettingsBodyFiscalYearStartDayMax).nullish(),
+  "currencies": zod.array(zod.object({
+  "code": zod.string().regex(updateCompanySettingsBodyCurrenciesItemCodeRegExp).describe('رمز عملة من ثلاثة أحرف، وتُحدد العملات المتاحة لكل منشأة من إعداداتها.'),
+  "isEnabled": zod.boolean()
+})).min(1).max(updateCompanySettingsBodyCurrenciesMax).optional()
+})
+
+export const updateCompanySettingsResponseBaseCurrencyOneRegExp = new RegExp('^[A-Z]{3}$');
+export const updateCompanySettingsResponseFiscalYearStartMonthMax = 12;
+
+export const updateCompanySettingsResponseFiscalYearStartDayMax = 31;
+
+export const updateCompanySettingsResponseCurrenciesItemCodeRegExp = new RegExp('^[A-Z]{3}$');
+
+
+export const UpdateCompanySettingsResponse = zod.object({
+  "companyId": zod.string().uuid(),
+  "name": zod.string(),
+  "countryCode": zod.string().nullable(),
+  "baseCurrency": zod.union([zod.string().regex(updateCompanySettingsResponseBaseCurrencyOneRegExp).describe('رمز عملة من ثلاثة أحرف، وتُحدد العملات المتاحة لكل منشأة من إعداداتها.'),zod.null()]),
+  "timezone": zod.string(),
+  "fiscalYearStartMonth": zod.number().int().min(1).max(updateCompanySettingsResponseFiscalYearStartMonthMax).nullable(),
+  "fiscalYearStartDay": zod.number().int().min(1).max(updateCompanySettingsResponseFiscalYearStartDayMax).nullable(),
+  "currencies": zod.array(zod.object({
+  "code": zod.string().regex(updateCompanySettingsResponseCurrenciesItemCodeRegExp).describe('رمز عملة من ثلاثة أحرف، وتُحدد العملات المتاحة لكل منشأة من إعداداتها.'),
+  "isEnabled": zod.boolean()
+}))
+})
+
+
+/**
  * Requires members:manage permission. Only an owner may assign the admin role; owner cannot be assigned through this route.
  * @summary Add an existing account to a company
  */

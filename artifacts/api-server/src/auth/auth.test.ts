@@ -5,6 +5,14 @@ import express from "express";
 import type { Server } from "node:http";
 import { AuthService } from "./service";
 import { createAuthRouter } from "./routes";
+import { CompanySettingsService } from "../settings/service";
+import { createCompanySettingsRouter } from "../settings/routes";
+import {
+  CompanySettingsError,
+  type CompanySettings,
+  type CompanySettingsRepository,
+  type CompanySettingsUpdate,
+} from "../settings/types";
 import type {
   AddCompanyMemberResult,
   AuthAuditEvent,
@@ -301,6 +309,145 @@ test("HTTP register, login, company creation, and member access work together", 
   assert.deepEqual(listed.companies.map((entry) => entry.id), [company.id]);
 });
 
+test("company settings are company-scoped and require settings:manage to update", async (t) => {
+  const authRepository = new MemoryAuthRepository();
+  const authService = createService(authRepository);
+  const ownerSession = await authService.register(
+    {
+      email: "settings-owner@example.test",
+      password: "correct horse battery",
+      displayName: "Settings Owner",
+    },
+    auditContext,
+  );
+  const company = await authService.createCompany(ownerSession.user.id, {
+    name: "Original Company",
+  });
+  const accountantSession = await authService.register(
+    {
+      email: "settings-accountant@example.test",
+      password: "another correct horse",
+      displayName: "Settings Accountant",
+    },
+    auditContext,
+  );
+  await authService.addCompanyMember(
+    company.id,
+    accountantSession.user.email,
+    "accountant",
+  );
+
+  const settingsRepository = new MemoryCompanySettingsRepository();
+  settingsRepository.seed({
+    companyId: company.id,
+    name: company.name,
+    countryCode: null,
+    baseCurrency: null,
+    timezone: "UTC",
+    fiscalYearStartMonth: null,
+    fiscalYearStartDay: null,
+    currencies: [{ code: "SAR", isEnabled: true }],
+  });
+
+  const app = express();
+  app.use(express.json());
+  app.use("/api", createAuthRouter(authService));
+  app.use(
+    "/api",
+    createCompanySettingsRouter(
+      authService,
+      new CompanySettingsService(settingsRepository),
+    ),
+  );
+  const server = app.listen(0, "127.0.0.1");
+  t.after(async () => closeServer(server));
+  await waitForListening(server);
+
+  const address = server.address();
+  assert.ok(address && typeof address !== "string");
+  const baseUrl = `http://127.0.0.1:${address.port}/api`;
+  const settingsUrl = `${baseUrl}/companies/${company.id}/settings`;
+  const authHeader = (token: string) => ({
+    authorization: `Bearer ${token}`,
+  });
+
+  const initialResponse = await fetch(settingsUrl, {
+    headers: authHeader(ownerSession.accessToken),
+  });
+  assert.equal(initialResponse.status, 200);
+  const initial = (await initialResponse.json()) as CompanySettings;
+  assert.equal(initial.baseCurrency, null);
+  assert.deepEqual(initial.currencies, [{ code: "SAR", isEnabled: true }]);
+
+  const updateResponse = await fetch(settingsUrl, {
+    method: "PATCH",
+    headers: {
+      ...authHeader(ownerSession.accessToken),
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      name: "  TAMM Demo  ",
+      countryCode: "ye",
+      baseCurrency: "YER",
+      fiscalYearStartMonth: 1,
+      fiscalYearStartDay: 1,
+      currencies: [
+        { code: "YER", isEnabled: true },
+        { code: "SAR", isEnabled: false },
+      ],
+    }),
+  });
+  assert.equal(updateResponse.status, 200);
+  const updated = (await updateResponse.json()) as CompanySettings;
+  assert.equal(updated.name, "TAMM Demo");
+  assert.equal(updated.countryCode, "YE");
+  assert.equal(updated.baseCurrency, "YER");
+  assert.deepEqual(updated.currencies, [
+    { code: "SAR", isEnabled: false },
+    { code: "YER", isEnabled: true },
+  ]);
+
+  const accountantReadResponse = await fetch(settingsUrl, {
+    headers: authHeader(accountantSession.accessToken),
+  });
+  assert.equal(accountantReadResponse.status, 200);
+  const accountantUpdateResponse = await fetch(settingsUrl, {
+    method: "PATCH",
+    headers: {
+      ...authHeader(accountantSession.accessToken),
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({ name: "Not allowed" }),
+  });
+  assert.equal(accountantUpdateResponse.status, 403);
+
+  const outsiderSession = await authService.register(
+    {
+      email: "settings-outsider@example.test",
+      password: "third correct horse",
+      displayName: "Settings Outsider",
+    },
+    auditContext,
+  );
+  const outsiderResponse = await fetch(settingsUrl, {
+    headers: authHeader(outsiderSession.accessToken),
+  });
+  assert.equal(outsiderResponse.status, 403);
+
+  const invalidFiscalYearResponse = await fetch(settingsUrl, {
+    method: "PATCH",
+    headers: {
+      ...authHeader(ownerSession.accessToken),
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      fiscalYearStartMonth: 2,
+      fiscalYearStartDay: 30,
+    }),
+  });
+  assert.equal(invalidFiscalYearResponse.status, 400);
+});
+
 function createService(repository: AuthRepository): AuthService {
   return new AuthService(repository, {
     accessTokenSecret: TEST_SECRET,
@@ -491,7 +638,7 @@ class MemoryAuthRepository implements AuthRepository {
     this.companyAccess.set(`${userId}:${company.id}`, {
       companyId: company.id,
       role: "owner",
-      permissions: ["companies:read", "members:manage"],
+      permissions: ["companies:read", "members:manage", "settings:manage"],
     });
     return company;
   }
@@ -531,6 +678,52 @@ class MemoryAuthRepository implements AuthRepository {
         token.revokedAt = now;
       }
     }
+  }
+}
+
+class MemoryCompanySettingsRepository implements CompanySettingsRepository {
+  private readonly settings = new Map<string, CompanySettings>();
+
+  seed(settings: CompanySettings): void {
+    this.settings.set(settings.companyId, structuredClone(settings));
+  }
+
+  async get(companyId: string): Promise<CompanySettings | null> {
+    const settings = this.settings.get(companyId);
+    return settings ? structuredClone(settings) : null;
+  }
+
+  async update(
+    companyId: string,
+    update: CompanySettingsUpdate,
+  ): Promise<CompanySettings | null> {
+    const current = this.settings.get(companyId);
+    if (!current) return null;
+
+    const currencyMap = new Map(
+      current.currencies.map((currency) => [currency.code, currency]),
+    );
+    for (const currency of update.currencies ?? []) {
+      currencyMap.set(currency.code, currency);
+    }
+    const baseCurrency = Object.hasOwn(update, "baseCurrency")
+      ? update.baseCurrency ?? null
+      : current.baseCurrency;
+    if (baseCurrency && !currencyMap.get(baseCurrency)?.isEnabled) {
+      throw new CompanySettingsError(400, "base_currency_must_be_enabled");
+    }
+
+    const { currencies: _currencies, ...profileUpdate } = update;
+    const result: CompanySettings = {
+      ...current,
+      ...profileUpdate,
+      baseCurrency,
+      currencies: [...currencyMap.values()].sort((a, b) =>
+        a.code.localeCompare(b.code),
+      ),
+    };
+    this.settings.set(companyId, result);
+    return structuredClone(result);
   }
 }
 

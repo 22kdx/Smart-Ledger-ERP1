@@ -37,6 +37,8 @@ import type {
   CompanyCreate,
   CompanyMember,
   CompanyMemberCreate,
+  CompanySettings,
+  CompanySettingsUpdate,
   HealthStatus,
   JournalEntry,
   JournalEntryCreate,
@@ -1298,6 +1300,197 @@ export function useGetCompanyAuthorization<TData = Awaited<ReturnType<typeof get
 
 
 
+
+export const getGetCompanySettingsUrl = (companyId: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/settings`
+}
+
+/**
+ * @summary Read company profile and currency options
+ */
+export const getCompanySettings = async (companyId: string, options?: Parameters<typeof customFetch>[1]): Promise<CompanySettings> => {
+
+  return customFetch<CompanySettings>(getGetCompanySettingsUrl(companyId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCompanySettingsQueryKey = (companyId: string,) => {
+    return [
+    `/api/companies/${companyId}/settings`
+    ] as const;
+    }
+
+
+export const getGetCompanySettingsQueryOptions = <TData = Awaited<ReturnType<typeof getCompanySettings>>, TError = ErrorType<void>>(companyId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCompanySettings>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCompanySettingsQueryKey(companyId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCompanySettings>>> = ({ signal }) => getCompanySettings(companyId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: companyId !== null && companyId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCompanySettings>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetCompanySettingsQueryResult = NonNullable<Awaited<ReturnType<typeof getCompanySettings>>>
+export type GetCompanySettingsQueryError = ErrorType<void>
+
+
+export function useGetCompanySettings<TData = Awaited<ReturnType<typeof getCompanySettings>>, TError = ErrorType<void>>(
+ companyId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCompanySettings>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getCompanySettings>>,
+          TError,
+          Awaited<ReturnType<typeof getCompanySettings>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetCompanySettings<TData = Awaited<ReturnType<typeof getCompanySettings>>, TError = ErrorType<void>>(
+ companyId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCompanySettings>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getCompanySettings>>,
+          TError,
+          Awaited<ReturnType<typeof getCompanySettings>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetCompanySettings<TData = Awaited<ReturnType<typeof getCompanySettings>>, TError = ErrorType<void>>(
+ companyId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCompanySettings>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Read company profile and currency options
+ */
+
+export function useGetCompanySettings<TData = Awaited<ReturnType<typeof getCompanySettings>>, TError = ErrorType<void>>(
+ companyId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCompanySettings>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetCompanySettingsQueryOptions(companyId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateCompanySettingsUrl = (companyId: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/settings`
+}
+
+/**
+ * Currency patches merge by code; omitted currencies remain unchanged. Does not calculate taxes or convert balances.
+ * @summary Update company profile and currency options
+ */
+export const updateCompanySettings = async (companyId: string,
+    companySettingsUpdate: CompanySettingsUpdate, options?: Parameters<typeof customFetch>[1]): Promise<CompanySettings> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<CompanySettings>(getUpdateCompanySettingsUrl(companyId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(companySettingsUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateCompanySettingsMutationKey = () => ['updateCompanySettings'] as const;
+
+export const getUpdateCompanySettingsMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCompanySettings>>, TError,UpdateCompanySettingsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateCompanySettings>>, TError,UpdateCompanySettingsMutationVariables, TContext> => {
+
+const mutationKey = getUpdateCompanySettingsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateCompanySettings>>, UpdateCompanySettingsMutationVariables> = (props) => {
+          const {companyId,data} = props ?? {};
+
+          return  updateCompanySettings(companyId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateCompanySettingsMutationResult = NonNullable<Awaited<ReturnType<typeof updateCompanySettings>>>
+    export type UpdateCompanySettingsMutationBody = BodyType<CompanySettingsUpdate>
+    export type UpdateCompanySettingsMutationError = ErrorType<void>
+    export type UpdateCompanySettingsMutationVariables = {companyId: string;data: BodyType<CompanySettingsUpdate>}
+
+    /**
+ * @summary Update company profile and currency options
+ */
+export const useUpdateCompanySettings = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCompanySettings>>, TError,UpdateCompanySettingsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateCompanySettings>>,
+        TError,
+        UpdateCompanySettingsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateCompanySettingsMutationOptions(options), queryClient);
+    }
 
 export const getAddCompanyMemberUrl = (companyId: string,) => {
 

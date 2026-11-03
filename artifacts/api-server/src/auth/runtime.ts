@@ -2,11 +2,14 @@ import pg from "pg";
 import { AuthService } from "./service";
 import { PostgresAuthRepository } from "./postgres-repository";
 import { logger } from "../lib/logger";
+import { CompanySettingsService } from "../settings/service";
+import { PostgresCompanySettingsRepository } from "../settings/postgres-repository";
 
 const { Pool } = pg;
 
 export type AuthRuntime = {
   service: AuthService | null;
+  companySettingsService: CompanySettingsService | null;
   close: () => Promise<void>;
 };
 
@@ -24,6 +27,7 @@ export function createAuthRuntime(): AuthRuntime {
     );
     return {
       service: null,
+      companySettingsService: null,
       close: async () => undefined,
     };
   }
@@ -44,9 +48,13 @@ export function createAuthRuntime(): AuthRuntime {
     issuer: process.env.AUTH_TOKEN_ISSUER ?? "midad-erp-api",
     audience: process.env.AUTH_TOKEN_AUDIENCE ?? "midad-erp-mobile",
   });
+  const companySettingsService = new CompanySettingsService(
+    new PostgresCompanySettingsRepository(pool),
+  );
 
   return {
     service,
+    companySettingsService,
     close: async () => {
       await pool.end();
     },

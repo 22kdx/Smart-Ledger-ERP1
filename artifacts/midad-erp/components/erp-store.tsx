@@ -157,11 +157,11 @@ const seedData: Omit<ERPData, 'journalEntries'> = {
   fiscalYearStartDay: null,
   taxRate: 0,
   invoices: [
-    { id: 'inv-01', number: 'INV-0248', customer: 'شركة الأفق', amount: 4850, currency: 'SAR', status: 'pending', date: 'اليوم' },
-    { id: 'inv-02', number: 'INV-0247', customer: 'متجر النخبة', amount: 2160, currency: 'SAR', status: 'paid', date: 'أمس' },
-    { id: 'inv-03', number: 'INV-0246', customer: 'مؤسسة الميناء', amount: 830000, currency: 'YER', status: 'paid', date: '١ نوفمبر' },
-    { id: 'inv-04', number: 'INV-0245', customer: 'سامي للتوريدات', amount: 780, currency: 'USD', status: 'pending', date: '٣١ أكتوبر' },
-    { id: 'inv-05', number: 'INV-0244', customer: 'شركة الأفق', amount: 3200, currency: 'SAR', status: 'paid', date: '٣٠ أكتوبر' },
+    { id: 'inv-01', number: 'INV-0248', customer: 'شركة الأفق', amount: 4850, currency: 'SAR', status: 'pending', date: dateDaysAgo(0) },
+    { id: 'inv-02', number: 'INV-0247', customer: 'متجر النخبة', amount: 2160, currency: 'SAR', status: 'paid', date: dateDaysAgo(1) },
+    { id: 'inv-03', number: 'INV-0246', customer: 'مؤسسة الميناء', amount: 830000, currency: 'YER', status: 'paid', date: dateDaysAgo(2) },
+    { id: 'inv-04', number: 'INV-0245', customer: 'سامي للتوريدات', amount: 780, currency: 'USD', status: 'pending', date: dateDaysAgo(3) },
+    { id: 'inv-05', number: 'INV-0244', customer: 'شركة الأفق', amount: 3200, currency: 'SAR', status: 'paid', date: dateDaysAgo(4) },
   ],
   products: [
     { id: 'prd-01', name: 'ورق طباعة A4', sku: 'PAP-204', category: 'مستلزمات مكتبية', quantity: 38, price: 24, currency: 'SAR' },
@@ -171,12 +171,12 @@ const seedData: Omit<ERPData, 'journalEntries'> = {
     { id: 'prd-05', name: 'آلة حاسبة مكتبية', sku: 'CAL-018', category: 'أجهزة', quantity: 14, price: 56, currency: 'SAR' },
   ],
   entries: [
-    { id: 'ent-01', title: 'تحصيل فاتورة INV-0247', category: 'تحصيل مبيعات', amount: 2160, currency: 'SAR', type: 'income', date: 'اليوم' },
-    { id: 'ent-02', title: 'شراء مستلزمات مكتبية', category: 'مشتريات', amount: 680, currency: 'SAR', type: 'expense', date: 'اليوم' },
-    { id: 'ent-03', title: 'خدمات استشارية', category: 'إيرادات خدمات', amount: 2450, currency: 'SAR', type: 'income', date: 'أمس' },
-    { id: 'ent-04', title: 'إيجار المكتب', category: 'مصروفات تشغيلية', amount: 1250, currency: 'SAR', type: 'expense', date: '٣١ أكتوبر' },
-    { id: 'ent-05', title: 'توريد محلي', category: 'مبيعات', amount: 455000, currency: 'YER', type: 'income', date: '٣٠ أكتوبر' },
-    { id: 'ent-06', title: 'اشتراك برنامج', category: 'تقنية', amount: 45, currency: 'USD', type: 'expense', date: '٢٩ أكتوبر' },
+    { id: 'ent-01', title: 'تحصيل فاتورة INV-0247', category: 'تحصيل مبيعات', amount: 2160, currency: 'SAR', type: 'income', date: dateDaysAgo(0) },
+    { id: 'ent-02', title: 'شراء مستلزمات مكتبية', category: 'مشتريات', amount: 680, currency: 'SAR', type: 'expense', date: dateDaysAgo(0) },
+    { id: 'ent-03', title: 'خدمات استشارية', category: 'إيرادات خدمات', amount: 2450, currency: 'SAR', type: 'income', date: dateDaysAgo(1) },
+    { id: 'ent-04', title: 'إيجار المكتب', category: 'مصروفات تشغيلية', amount: 1250, currency: 'SAR', type: 'expense', date: dateDaysAgo(3) },
+    { id: 'ent-05', title: 'توريد محلي', category: 'مبيعات', amount: 455000, currency: 'YER', type: 'income', date: dateDaysAgo(4) },
+    { id: 'ent-06', title: 'اشتراك برنامج', category: 'تقنية', amount: 45, currency: 'USD', type: 'expense', date: dateDaysAgo(5) },
   ],
   employees: [
     { id: 'emp-01', name: 'أحمد العريقي', role: 'مدير المبيعات', salary: 6500, currency: 'SAR' },
@@ -231,16 +231,15 @@ function createId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function todayLabel() {
-  return new Intl.DateTimeFormat('ar-SA-u-ca-gregory', {
-    day: 'numeric',
-    month: 'short',
-    numberingSystem: 'latn',
-  }).format(new Date());
-}
-
 function todayIso() {
   const date = new Date();
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function dateDaysAgo(daysAgo: number) {
+  const date = new Date();
+  date.setHours(12, 0, 0, 0);
+  date.setDate(date.getDate() - daysAgo);
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
@@ -418,7 +417,7 @@ export function ERPProvider({ children }: { children: React.ReactNode }) {
         ...draft,
         id: createId(),
         number: nextInvoiceNumber(data.invoices),
-        date: todayLabel(),
+        date: todayIso(),
       };
       const issueJournal = numberedJournal(
         invoiceIssueJournal(invoice),
@@ -448,7 +447,7 @@ export function ERPProvider({ children }: { children: React.ReactNode }) {
     addProduct: (draft) =>
       commit({ ...data, products: [{ ...draft, id: createId() }, ...data.products] }),
     addEntry: (draft) => {
-      const entry: Entry = { ...draft, id: createId(), date: todayLabel() };
+      const entry: Entry = { ...draft, id: createId(), date: todayIso() };
       commit({
         ...data,
         entries: [entry, ...data.entries],
@@ -541,6 +540,7 @@ export function ERPProvider({ children }: { children: React.ReactNode }) {
       const entry = data.journalEntries.find((item) => item.id === id);
       if (!entry || entry.status !== 'draft') return;
       if (
+        !isValidIsoDate(entry.date) ||
         !isJournalBalanced(entry.lines) ||
         entry.lines.some((line) =>
           !data.accounts.some(

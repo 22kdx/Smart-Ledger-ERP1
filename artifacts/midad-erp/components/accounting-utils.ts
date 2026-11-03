@@ -47,6 +47,44 @@ export type GeneralLedgerRow = {
   runningBalance: number;
 };
 
+export function getJournalEntriesInDateRange(
+  journalEntries: JournalEntry[],
+  fromDate?: string,
+  toDate?: string,
+): JournalEntry[] {
+  if (!fromDate && !toDate) return journalEntries;
+  return journalEntries.filter((entry) => {
+    if (!isValidIsoDate(entry.date)) return false;
+    if (fromDate && entry.date < fromDate) return false;
+    if (toDate && entry.date > toDate) return false;
+    return true;
+  });
+}
+
+export function getJournalEntriesThroughDate(
+  journalEntries: JournalEntry[],
+  toDate?: string,
+): JournalEntry[] {
+  if (!toDate) return journalEntries;
+  return getJournalEntriesInDateRange(journalEntries, undefined, toDate);
+}
+
+export function countUndatedJournalEntries(journalEntries: JournalEntry[]): number {
+  return journalEntries.filter(
+    (entry) => entry.status !== 'draft' && !isValidIsoDate(entry.date),
+  ).length;
+}
+
+export function formatAccountingDate(value: string): string {
+  if (!isValidIsoDate(value)) return value;
+  const [year, month, day] = value.split('-').map(Number);
+  return new Intl.DateTimeFormat('ar-SA-u-ca-gregory-nu-latn', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(new Date(year, month - 1, day, 12));
+}
+
 export function toMinorUnits(amount: number): number {
   if (!Number.isFinite(amount) || Math.abs(amount) > Number.MAX_SAFE_INTEGER / 100) {
     throw new Error('invalid_amount');
@@ -75,8 +113,12 @@ export function isJournalBalanced(lines: JournalLine[]): boolean {
     ) {
       return false;
     }
-    debit += toMinorUnits(line.debit);
-    credit += toMinorUnits(line.credit);
+    try {
+      debit += toMinorUnits(line.debit);
+      credit += toMinorUnits(line.credit);
+    } catch {
+      return false;
+    }
     accounts.add(line.accountId);
   }
   return accounts.size >= 2 && debit === credit;

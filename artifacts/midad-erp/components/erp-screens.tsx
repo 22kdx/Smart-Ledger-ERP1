@@ -1,6 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Pressable,
@@ -39,11 +39,24 @@ import {
   useERP,
 } from './erp-store';
 import { CompanySettings } from './company-settings';
-import { getGeneralLedgerRows, getTrialBalanceTotals } from './accounting-utils';
+import {
+  countUndatedJournalEntries,
+  formatAccountingDate,
+  getGeneralLedgerRows,
+  getJournalEntriesInDateRange,
+  getJournalEntriesThroughDate,
+  getTrialBalanceTotals,
+  isValidIsoDate,
+} from './accounting-utils';
 
 const Text = AppText;
 
 export type FormType = 'invoice' | 'product' | 'income' | 'expense' | 'employee' | 'customer' | 'supplier' | 'journal' | 'account';
+
+function todayLocalIsoDate() {
+  const date = new Date();
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
 
 const typeLabels: Record<FormType, string> = {
   invoice: 'فاتورة مبيعات',
@@ -428,7 +441,6 @@ export function FinanceScreen({ onAdd }: { onAdd: (type: FormType) => void }) {
   const colors = useColors();
   const {
     data,
-    updateBaseCurrency,
     postJournalEntry,
     deleteJournalDraft,
     reverseJournalEntry,
@@ -437,13 +449,21 @@ export function FinanceScreen({ onAdd }: { onAdd: (type: FormType) => void }) {
   const [filter, setFilter] = useState<'all' | 'income' | 'expense'>('all');
   const [view, setView] = useState<'overview' | 'accounts' | 'journal' | 'reports'>('overview');
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
-  const balances = getAccountBalances(data.journalEntries, data.baseCurrency, data.accounts);
+  const [displayCurrency, setDisplayCurrency] = useState(data.baseCurrency);
+  const [reportStartDraft, setReportStartDraft] = useState('');
+  const [reportEndDraft, setReportEndDraft] = useState('');
+  const [reportPeriod, setReportPeriod] = useState<{ fromDate?: string; toDate?: string }>({});
+  const [reportError, setReportError] = useState('');
+  useEffect(() => {
+    setDisplayCurrency(data.baseCurrency);
+  }, [data.baseCurrency]);
+  const balances = getAccountBalances(data.journalEntries, displayCurrency, data.accounts);
   const selectedAccount = data.accounts.find((account) => account.id === selectedAccountId) ?? null;
   const ledgerRows = selectedAccount
     ? getGeneralLedgerRows(
         data.journalEntries,
         selectedAccount.id,
-        data.baseCurrency,
+        displayCurrency,
         selectedAccount,
       )
     : [];
@@ -453,24 +473,77 @@ export function FinanceScreen({ onAdd }: { onAdd: (type: FormType) => void }) {
   const expense = data.accounts
     .filter((account) => account.type === 'expense')
     .reduce((sum, account) => sum + balances[account.id].balance, 0);
-  const assets = data.accounts
+  const periodEntries = getJournalEntriesInDateRange(
+    data.journalEntries,
+    reportPeriod.fromDate,
+    reportPeriod.toDate,
+  );
+  const endingEntries = getJournalEntriesThroughDate(
+    data.journalEntries,
+    reportPeriod.toDate,
+  );
+  const periodBalances = getAccountBalances(periodEntries, displayCurrency, data.accounts);
+  const endingBalances = getAccountBalances(endingEntries, displayCurrency, data.accounts);
+  const periodIncome = data.accounts
+    .filter((account) => account.type === 'revenue')
+    .reduce((sum, account) => sum + (periodBalances[account.id]?.balance ?? 0), 0);
+  const periodExpense = data.accounts
+    .filter((account) => account.type === 'expense')
+    .reduce((sum, account) => sum + (periodBalances[account.id]?.balance ?? 0), 0);
+  const periodProfit = periodIncome - periodExpense;
+  const endingIncome = data.accounts
+    .filter((account) => account.type === 'revenue')
+    .reduce((sum, account) => sum + (endingBalances[account.id]?.balance ?? 0), 0);
+  const endingExpense = data.accounts
+    .filter((account) => account.type === 'expense')
+    .reduce((sum, account) => sum + (endingBalances[account.id]?.balance ?? 0), 0);
+  const endingAssets = data.accounts
     .filter((account) => account.type === 'asset')
-    .reduce((sum, account) => sum + balances[account.id].balance, 0);
-  const liabilities = data.accounts
+    .reduce((sum, account) => sum + (endingBalances[account.id]?.balance ?? 0), 0);
+  const endingLiabilities = data.accounts
     .filter((account) => account.type === 'liability')
-    .reduce((sum, account) => sum + balances[account.id].balance, 0);
-  const equity = data.accounts
+    .reduce((sum, account) => sum + (endingBalances[account.id]?.balance ?? 0), 0);
+  const endingEquity = data.accounts
     .filter((account) => account.type === 'equity')
-    .reduce((sum, account) => sum + balances[account.id].balance, 0);
-  const currentProfit = income - expense;
-  const trialTotals = getTrialBalanceTotals(balances);
+    .reduce((sum, account) => sum + (endingBalances[account.id]?.balance ?? 0), 0);
+  const retainedProfit = endingIncome - endingExpense;
+  const trialTotals = getTrialBalanceTotals(endingBalances);
   const totalDebit = trialTotals.debit;
   const totalCredit = trialTotals.credit;
   const max = Math.max(income, expense, 1);
   const visibleEntries = data.entries.filter(
     (entry) =>
-      entry.currency === data.baseCurrency && (filter === 'all' || entry.type === filter),
+      entry.currency === displayCurrency && (filter === 'all' || entry.type === filter),
   );
+  const hasReportPeriod = Boolean(reportPeriod.fromDate && reportPeriod.toDate);
+  const undatedEntriesInReport = hasReportPeriod
+    ? countUndatedJournalEntries(data.journalEntries)
+    : 0;
+  const applyReportPeriod = () => {
+    const fromDate = toEnglishDigits(reportStartDraft).trim();
+    const toDate = toEnglishDigits(reportEndDraft).trim();
+    if (!fromDate && !toDate) {
+      setReportPeriod({});
+      setReportError('');
+      return;
+    }
+    if (!isValidIsoDate(fromDate) || !isValidIsoDate(toDate)) {
+      setReportError('أدخل تاريخي البداية والنهاية بالصيغة YYYY-MM-DD، أو اترك الحقلين فارغين.');
+      return;
+    }
+    if (fromDate > toDate) {
+      setReportError('تاريخ البداية يجب أن يسبق تاريخ النهاية أو يساويه.');
+      return;
+    }
+    setReportPeriod({ fromDate, toDate });
+    setReportError('');
+  };
+  const clearReportPeriod = () => {
+    setReportStartDraft('');
+    setReportEndDraft('');
+    setReportPeriod({});
+    setReportError('');
+  };
   const requestReverse = (journal: JournalEntry) => {
     Alert.alert(
       'عكس القيد',
@@ -480,14 +553,14 @@ export function FinanceScreen({ onAdd }: { onAdd: (type: FormType) => void }) {
         {
           text: 'إنشاء العكس',
           style: 'destructive',
-          onPress: () => reverseJournalEntry(journal.id, new Date().toISOString().slice(0, 10)),
+          onPress: () => reverseJournalEntry(journal.id, todayLocalIsoDate()),
         },
       ],
     );
   };
 
   return (
-    <Page>
+    <Page keyboardAware={view === 'reports'}>
       <ScreenHeader eyebrow="الحسابات" title="المالية" detail="متابعة الإيرادات والمصروفات" />
       <View style={screenStyles.financeViews}>
         {([
@@ -523,20 +596,20 @@ export function FinanceScreen({ onAdd }: { onAdd: (type: FormType) => void }) {
           <Text style={[screenStyles.currencyCardHint, { color: colors.mutedForeground }]}>الأرقام لا تجمع بين عملات مختلفة</Text>
         </View>
         <CurrencyPicker
-          value={data.baseCurrency}
-          onChange={updateBaseCurrency}
+            value={displayCurrency}
+            onChange={setDisplayCurrency}
           currencies={data.currencies.filter((option) => option.isActive)}
         />
       </Card>
       <View style={screenStyles.metricsGrid}>
-        <Metric label="الإيرادات" amount={income} currency={data.baseCurrency} icon="trending-up" positive />
-        <Metric label="المصروفات" amount={expense} currency={data.baseCurrency} icon="trending-down" />
+        <Metric label="الإيرادات" amount={income} currency={displayCurrency} icon="trending-up" positive />
+        <Metric label="المصروفات" amount={expense} currency={displayCurrency} icon="trending-down" />
       </View>
       <Card>
         <SectionHeading title="مقارنة الحركة المالية" />
         <View style={screenStyles.chartRow}>
-          <ChartColumn label="إيرادات" amount={income} max={max} currency={data.baseCurrency} positive />
-          <ChartColumn label="مصروفات" amount={expense} max={max} currency={data.baseCurrency} />
+          <ChartColumn label="إيرادات" amount={income} max={max} currency={displayCurrency} positive />
+          <ChartColumn label="مصروفات" amount={expense} max={max} currency={displayCurrency} />
         </View>
       </Card>
       <View style={screenStyles.actionsRow}>
@@ -626,9 +699,9 @@ export function FinanceScreen({ onAdd }: { onAdd: (type: FormType) => void }) {
                         <Text style={[screenStyles.rowSub, { color: colors.mutedForeground }]}>{row.entryNumber} · {row.date}</Text>
                       </View>
                       <View style={screenStyles.ledgerAmounts}>
-                        <Text style={[screenStyles.ledgerAmount, { color: colors.foreground }]}>مدين {formatMoney(row.debit, data.baseCurrency)}</Text>
-                        <Text style={[screenStyles.ledgerAmount, { color: colors.foreground }]}>دائن {formatMoney(row.credit, data.baseCurrency)}</Text>
-                        <Text style={[screenStyles.ledgerBalance, { color: colors.primary }]}>الرصيد {formatMoney(row.runningBalance, data.baseCurrency)}</Text>
+                        <Text style={[screenStyles.ledgerAmount, { color: colors.foreground }]}>مدين {formatMoney(row.debit, displayCurrency)}</Text>
+                        <Text style={[screenStyles.ledgerAmount, { color: colors.foreground }]}>دائن {formatMoney(row.credit, displayCurrency)}</Text>
+                        <Text style={[screenStyles.ledgerBalance, { color: colors.primary }]}>الرصيد {formatMoney(row.runningBalance, displayCurrency)}</Text>
                       </View>
                     </View>
                   ))
@@ -656,7 +729,7 @@ export function FinanceScreen({ onAdd }: { onAdd: (type: FormType) => void }) {
                     key={account.id}
                     account={account}
                     balance={balances[account.id]?.balance ?? 0}
-                    currency={data.baseCurrency}
+                    currency={displayCurrency}
                     last={index === data.accounts.length - 1}
                     onSelect={() => setSelectedAccountId(account.id)}
                     onToggleActive={() =>
@@ -695,7 +768,7 @@ export function FinanceScreen({ onAdd }: { onAdd: (type: FormType) => void }) {
                 <JournalEntryRow
                   key={journal.id}
                   journal={journal}
-                  currency={data.baseCurrency}
+                  currency={displayCurrency}
                   accounts={data.accounts}
                   last={index === data.journalEntries.length - 1}
                   onPost={() => postJournalEntry(journal.id)}
@@ -725,25 +798,112 @@ export function FinanceScreen({ onAdd }: { onAdd: (type: FormType) => void }) {
           <Card style={screenStyles.currencyCard}>
             <View style={screenStyles.currencyCardHeader}>
               <Text style={[screenStyles.currencyCardTitle, { color: colors.foreground }]}>عملة التقرير</Text>
-              <Text style={[screenStyles.currencyCardHint, { color: colors.mutedForeground }]}>من بداية السجلات</Text>
+              <Text style={[screenStyles.currencyCardHint, { color: colors.mutedForeground }]}>عرض فقط، بلا تحويل</Text>
             </View>
             <CurrencyPicker
-              value={data.baseCurrency}
-              onChange={updateBaseCurrency}
+              value={displayCurrency}
+              onChange={setDisplayCurrency}
               currencies={data.currencies.filter((option) => option.isActive)}
             />
           </Card>
           <Card style={screenStyles.reportCard}>
-            <SectionHeading title="قائمة الدخل" />
-            <ReportRow label="الإيرادات" amount={income} currency={data.baseCurrency} />
-            <ReportRow label="المصروفات" amount={expense} currency={data.baseCurrency} />
-            <ReportRow label="صافي الربح" amount={currentProfit} currency={data.baseCurrency} strong />
+            <SectionHeading title="فترة التقرير" />
+            <Text style={[screenStyles.currencyCardHint, { color: colors.mutedForeground }]}>
+              اترك التاريخين فارغين لعرض كل السجلات.
+            </Text>
+            <View style={screenStyles.reportDateRow}>
+              <View style={screenStyles.reportDateField}>
+                <Text style={[screenStyles.reportDateLabel, { color: colors.mutedForeground }]}>من تاريخ</Text>
+                <TextInput
+                  accessibilityLabel="بداية فترة التقرير"
+                  testID="report-start-date"
+                  value={reportStartDraft}
+                  onChangeText={(value) => {
+                    setReportStartDraft(toEnglishDigits(value).replace(/[^\d-]/g, '').slice(0, 10));
+                    setReportError('');
+                  }}
+                  placeholder="YYYY-MM-DD"
+                  placeholderTextColor={colors.mutedForeground}
+                  keyboardType="numbers-and-punctuation"
+                  maxLength={10}
+                  style={[
+                    screenStyles.reportDateInput,
+                    { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background },
+                  ]}
+                />
+              </View>
+              <View style={screenStyles.reportDateField}>
+                <Text style={[screenStyles.reportDateLabel, { color: colors.mutedForeground }]}>إلى تاريخ</Text>
+                <TextInput
+                  accessibilityLabel="نهاية فترة التقرير"
+                  testID="report-end-date"
+                  value={reportEndDraft}
+                  onChangeText={(value) => {
+                    setReportEndDraft(toEnglishDigits(value).replace(/[^\d-]/g, '').slice(0, 10));
+                    setReportError('');
+                  }}
+                  placeholder="YYYY-MM-DD"
+                  placeholderTextColor={colors.mutedForeground}
+                  keyboardType="numbers-and-punctuation"
+                  maxLength={10}
+                  style={[
+                    screenStyles.reportDateInput,
+                    { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background },
+                  ]}
+                />
+              </View>
+            </View>
+            {reportError ? (
+              <Text accessibilityRole="alert" style={[screenStyles.reportDateError, { color: colors.warning }]}>
+                {reportError}
+              </Text>
+            ) : null}
+            <View style={screenStyles.reportPeriodActions}>
+              <Pressable
+                accessibilityRole="button"
+                testID="apply-report-period"
+                onPress={applyReportPeriod}
+                style={({ pressed }) => [
+                  screenStyles.reportPeriodButton,
+                  { backgroundColor: colors.primary, opacity: pressed ? 0.75 : 1 },
+                ]}
+              >
+                <Text style={[screenStyles.primaryButtonText, { color: colors.primaryForeground }]}>تطبيق الفترة</Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                testID="clear-report-period"
+                onPress={clearReportPeriod}
+                style={({ pressed }) => [
+                  screenStyles.reportPeriodButton,
+                  { backgroundColor: colors.secondary, opacity: pressed ? 0.75 : 1 },
+                ]}
+              >
+                <Text style={[screenStyles.primaryButtonText, { color: colors.foreground }]}>مسح</Text>
+              </Pressable>
+            </View>
+            {hasReportPeriod ? (
+              <Text style={[screenStyles.currencyCardHint, { color: colors.primary }]}>
+                من {formatAccountingDate(reportPeriod.fromDate!)} إلى {formatAccountingDate(reportPeriod.toDate!)}
+              </Text>
+            ) : null}
+            {undatedEntriesInReport > 0 ? (
+              <Text style={[screenStyles.reportDateWarning, { color: colors.warning }]}>
+                استُبعد {undatedEntriesInReport} قيداً قديماً لأن تاريخه ليس بصيغة YYYY-MM-DD.
+              </Text>
+            ) : null}
           </Card>
           <Card style={screenStyles.reportCard}>
-            <SectionHeading title="الميزانية" />
-            <ReportRow label="الأصول" amount={assets} currency={data.baseCurrency} />
-            <ReportRow label="الالتزامات" amount={liabilities} currency={data.baseCurrency} />
-            <ReportRow label="حقوق الملكية" amount={equity + currentProfit} currency={data.baseCurrency} strong />
+            <SectionHeading title="قائمة الدخل" />
+            <ReportRow label="إيرادات الفترة" amount={periodIncome} currency={displayCurrency} />
+            <ReportRow label="مصروفات الفترة" amount={periodExpense} currency={displayCurrency} />
+            <ReportRow label="صافي ربح الفترة" amount={periodProfit} currency={displayCurrency} strong />
+          </Card>
+          <Card style={screenStyles.reportCard}>
+            <SectionHeading title="الميزانية حتى تاريخ التقرير" />
+            <ReportRow label="الأصول" amount={endingAssets} currency={displayCurrency} />
+            <ReportRow label="الالتزامات" amount={endingLiabilities} currency={displayCurrency} />
+            <ReportRow label="حقوق الملكية والأرباح المتراكمة" amount={endingEquity + retainedProfit} currency={displayCurrency} strong />
           </Card>
           <Card style={screenStyles.reportCard}>
             <SectionHeading title="ميزان المراجعة" />
@@ -761,19 +921,19 @@ export function FinanceScreen({ onAdd }: { onAdd: (type: FormType) => void }) {
                 </Text>
                 <View style={screenStyles.trialAmounts}>
                   <Text style={[screenStyles.trialAmount, { color: colors.mutedForeground }]}>
-                    {formatMoney(balances[account.id]?.debit ?? 0, data.baseCurrency)}
+              {formatMoney(endingBalances[account.id]?.debit ?? 0, displayCurrency)}
                   </Text>
                   <Text style={[screenStyles.trialAmount, { color: colors.mutedForeground }]}>
-                    {formatMoney(balances[account.id]?.credit ?? 0, data.baseCurrency)}
+              {formatMoney(endingBalances[account.id]?.credit ?? 0, displayCurrency)}
                   </Text>
                 </View>
               </View>
             ))}
             <View style={[screenStyles.trialBalanceRow, screenStyles.trialTotals, { borderTopColor: colors.border }]}>
-              <Text style={[screenStyles.trialAccountName, { color: colors.foreground }]}>الإجمالي</Text>
+            <Text style={[screenStyles.trialAccountName, { color: colors.foreground }]}>الإجمالي حتى تاريخ التقرير</Text>
               <View style={screenStyles.trialAmounts}>
-                <Text style={[screenStyles.trialAmount, { color: colors.foreground, fontWeight: '800' }]}>{formatMoney(totalDebit, data.baseCurrency)}</Text>
-                <Text style={[screenStyles.trialAmount, { color: colors.foreground, fontWeight: '800' }]}>{formatMoney(totalCredit, data.baseCurrency)}</Text>
+              <Text style={[screenStyles.trialAmount, { color: colors.foreground, fontWeight: '800' }]}>{formatMoney(totalDebit, displayCurrency)}</Text>
+              <Text style={[screenStyles.trialAmount, { color: colors.foreground, fontWeight: '800' }]}>{formatMoney(totalCredit, displayCurrency)}</Text>
               </View>
             </View>
               <Text style={[
@@ -875,7 +1035,7 @@ function JournalEntryRow({
         <View style={screenStyles.journalCopy}>
           <Text style={[screenStyles.rowTitle, { color: colors.foreground }]}>{journal.description}</Text>
           <Text style={[screenStyles.rowSub, { color: colors.mutedForeground }]}>
-            {journal.entryNumber ?? '—'} · {journal.date} · {journal.lines.length} سطر
+            {journal.entryNumber ?? '—'} · {formatAccountingDate(journal.date)} · {journal.lines.length} سطر
           </Text>
           {journal.lines.slice(0, 3).map((line, index) => {
             const account = accounts.find((item) => item.id === line.accountId);
@@ -1107,7 +1267,7 @@ function TransactionRow({ entry, last }: { entry: Entry; last: boolean }) {
       </View>
       <View style={screenStyles.rowMain}>
         <Text style={[screenStyles.rowTitle, { color: colors.foreground }]} numberOfLines={1}>{entry.title}</Text>
-        <Text style={[screenStyles.rowSub, { color: colors.mutedForeground }]}>{entry.category} · {entry.date}</Text>
+        <Text style={[screenStyles.rowSub, { color: colors.mutedForeground }]}>{entry.category} · {formatAccountingDate(entry.date)}</Text>
       </View>
       <Text style={[screenStyles.rowAmount, { color: income ? colors.success : colors.foreground }]}>
         {income ? '+' : '−'} {formatMoney(entry.amount, entry.currency)}
@@ -1134,7 +1294,7 @@ function InvoiceRow({
       </View>
       <View style={screenStyles.rowMain}>
         <Text style={[screenStyles.rowTitle, { color: colors.foreground }]} numberOfLines={1}>{invoice.customer}</Text>
-        <Text style={[screenStyles.rowSub, { color: colors.mutedForeground }]}>{invoice.number} · {invoice.date}</Text>
+        <Text style={[screenStyles.rowSub, { color: colors.mutedForeground }]}>{invoice.number} · {formatAccountingDate(invoice.date)}</Text>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={paid ? 'تغيير الحالة إلى مستحقة' : 'تغيير الحالة إلى مدفوعة'}
@@ -1376,6 +1536,23 @@ const screenStyles = StyleSheet.create({
   journalActionButton: { minHeight: 34, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 10, paddingHorizontal: 10 },
   journalActionText: { fontSize: 10, fontWeight: '700', textAlign: 'center', writingDirection: 'rtl' },
   reportCard: { gap: 12 },
+  reportDateRow: { flexDirection: 'row', gap: 10 },
+  reportDateField: { flex: 1, gap: 6 },
+  reportDateLabel: { fontSize: 11, fontWeight: '600', textAlign: 'right', writingDirection: 'rtl' },
+  reportDateInput: {
+    minHeight: 46,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    fontSize: 13,
+    fontFamily: APP_FONTS.latin.regular,
+    textAlign: 'left',
+    writingDirection: 'ltr',
+  },
+  reportDateError: { fontSize: 11, fontWeight: '600', textAlign: 'right', writingDirection: 'rtl' },
+  reportDateWarning: { fontSize: 11, textAlign: 'right', writingDirection: 'rtl' },
+  reportPeriodActions: { flexDirection: 'row', gap: 8 },
+  reportPeriodButton: { flex: 1, minHeight: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   reportRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
   reportLabel: { fontSize: 12, textAlign: 'right', writingDirection: 'rtl' },
   reportAmount: { fontSize: 12, textAlign: 'right', writingDirection: 'rtl' },

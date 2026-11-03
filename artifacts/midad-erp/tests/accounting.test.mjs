@@ -2,6 +2,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   getAccountBalances,
+  countUndatedJournalEntries,
+  getJournalEntriesInDateRange,
+  getJournalEntriesThroughDate,
   getGeneralLedgerRows,
   getTrialBalanceTotals,
   isJournalBalanced,
@@ -96,4 +99,41 @@ test('builds a chronological account ledger with running balances', () => {
 test('allocates the next journal number without collisions', () => {
   assert.equal(nextJournalNumber(postedEntries), 'JE-00004');
   assert.equal(nextJournalNumber([]), 'JE-00001');
+});
+
+test('filters reports by valid ISO dates while retaining all-history behavior', () => {
+  const withUndated = [
+    ...postedEntries,
+    {
+      id: 'legacy',
+      entryNumber: 'JE-00004',
+      description: 'سجل قديم بلا تاريخ معياري',
+      date: 'أمس',
+      status: 'posted',
+      sourceType: 'manual',
+      lines: [
+        { accountId: 'cash', debit: 7, credit: 0, currency: 'SAR' },
+        { accountId: 'revenue', debit: 0, credit: 7, currency: 'SAR' },
+      ],
+    },
+  ];
+
+  assert.deepEqual(
+    getJournalEntriesInDateRange(withUndated, '2026-11-01', '2026-11-01').map((entry) => entry.id),
+    ['sale'],
+  );
+  assert.deepEqual(
+    getJournalEntriesThroughDate(withUndated, '2026-11-01').map((entry) => entry.id),
+    ['sale'],
+  );
+  assert.equal(getJournalEntriesInDateRange(withUndated).length, withUndated.length);
+  assert.equal(countUndatedJournalEntries(withUndated), 1);
+  assert.equal(countUndatedJournalEntries(withUndated.filter((entry) => entry.id !== 'legacy')), 0);
+});
+
+test('rejects invalid dates and unsafe monetary values without throwing', () => {
+  assert.equal(isJournalBalanced([
+    { accountId: 'cash', debit: Number.MAX_VALUE, credit: 0, currency: 'SAR' },
+    { accountId: 'revenue', debit: 0, credit: Number.MAX_VALUE, currency: 'SAR' },
+  ]), false);
 });

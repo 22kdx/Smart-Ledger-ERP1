@@ -13,7 +13,8 @@ export interface Account {
   name: string;
   type: AccountType;
   /** @nullable */
-  parentAccountId?: string | null;
+  parentAccountId: string | null;
   isSystem: boolean;
   isActive: boolean;
+  createdAt: Date;
 }

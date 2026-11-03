@@ -288,10 +288,11 @@ export interface AccountCreate {
   /**
      * @minLength 1
      * @maxLength 32
+     * @pattern ^[A-Za-z0-9._-]+$
      */
   code: string;
   /**
-     * @minLength 2
+     * @minLength 1
      * @maxLength 160
      */
   name: string;
@@ -317,28 +318,50 @@ export interface Account {
   name: string;
   type: AccountType;
   /** @nullable */
-  parentAccountId?: string | null;
+  parentAccountId: string | null;
   isSystem: boolean;
   isActive: boolean;
+  createdAt: string;
 }
 
+export interface AccountUpdate {
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  name?: string;
+  /** @nullable */
+  parentAccountId?: string | null;
+  isActive?: boolean;
+}
+
+export type JournalLineCreateSide = typeof JournalLineCreateSide[keyof typeof JournalLineCreateSide];
+
+
+export const JournalLineCreateSide = {
+  debit: 'debit',
+  credit: 'credit',
+} as const;
+
+/**
+ * Until multi-currency posting is enabled, currency must equal the company base currency.
+ */
 export interface JournalLineCreate {
   accountId: string;
-  /** @minimum 0 */
-  debit: number;
-  /** @minimum 0 */
-  credit: number;
-  transactionCurrency: Currency;
-  /** @minimum 0 */
-  transactionAmount: number;
-  /** @exclusiveMinimum 0 */
-  exchangeRate: number;
-  /** @nullable */
+  side: JournalLineCreateSide;
+  /** @pattern ^(0|[1-9][0-9]{0,15})(\.[0-9]{1,4})?$ */
+  amount: string;
+  currency: Currency;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
   memo?: string | null;
 }
 
 export type JournalLine = JournalLineCreate & {
   id: string;
+  lineNumber: number;
   accountCode: string;
   accountName: string;
 };
@@ -355,14 +378,45 @@ export interface JournalEntryCreate {
      * @nullable
      */
   reference?: string | null;
-  /** @minItems 2 */
+  /** @maxItems 100 */
   lines: JournalLineCreate[];
+}
+
+export interface JournalEntryUpdate {
+  entryDate?: string;
+  /**
+     * @minLength 2
+     * @maxLength 500
+     */
+  description?: string;
+  /**
+     * @maxLength 100
+     * @nullable
+     */
+  reference?: string | null;
+  /** @maxItems 100 */
+  lines?: JournalLineCreate[];
+}
+
+export interface JournalReversalCreate {
+  entryDate: string;
+  /**
+     * @minLength 2
+     * @maxLength 500
+     */
+  description?: string;
+  /**
+     * @maxLength 100
+     * @nullable
+     */
+  reference?: string | null;
 }
 
 export type JournalEntryStatus = typeof JournalEntryStatus[keyof typeof JournalEntryStatus];
 
 
 export const JournalEntryStatus = {
+  draft: 'draft',
   posted: 'posted',
   reversed: 'reversed',
 } as const;
@@ -375,7 +429,84 @@ export interface JournalEntry {
   /** @nullable */
   reference?: string | null;
   status: JournalEntryStatus;
+  /**
+     * @nullable
+     * @pattern ^[A-Z]{3}$
+     */
+  baseCurrency: string | null;
+  /** @nullable */
+  reversalOfId: string | null;
+  createdBy: string;
+  createdAt: string;
+  /** @nullable */
+  postedAt: string | null;
   lines: JournalLine[];
+}
+
+export type AccountingPeriodStatus = typeof AccountingPeriodStatus[keyof typeof AccountingPeriodStatus];
+
+
+export const AccountingPeriodStatus = {
+  open: 'open',
+  closed: 'closed',
+} as const;
+
+export interface AccountingPeriod {
+  id: string;
+  name: string;
+  startDate: string;
+  endDate: string;
+  status: AccountingPeriodStatus;
+  /** @nullable */
+  closedAt: string | null;
+}
+
+export interface AccountingPeriodCreate {
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  name: string;
+  startDate: string;
+  endDate: string;
+}
+
+export type GeneralLedgerLinesItem = {
+  journalEntryId: string;
+  entryNumber: string;
+  entryDate: string;
+  description: string;
+  debit: string;
+  credit: string;
+  runningBalance: string;
+};
+
+export interface GeneralLedger {
+  account: Account;
+  currency: Currency;
+  /** @nullable */
+  fromDate: string | null;
+  /** @nullable */
+  toDate: string | null;
+  openingBalance: string;
+  closingBalance: string;
+  lines: GeneralLedgerLinesItem[];
+}
+
+export type TrialBalanceAccountsItem = {
+  account: Account;
+  debit: string;
+  credit: string;
+  balance: string;
+};
+
+export interface TrialBalance {
+  asOfDate: string;
+  currency: Currency;
+  accounts: TrialBalanceAccountsItem[];
+  totalDebit: string;
+  totalCredit: string;
+  isBalanced: boolean;
 }
 
 export interface CompanyTaxRule {
@@ -450,8 +581,48 @@ export type ListAccounts200 = {
   accounts: Account[];
 };
 
+export type ListJournalEntriesParams = {
+status?: ListJournalEntriesStatus;
+fromDate?: string;
+toDate?: string;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+limit?: number;
+/**
+ * @minimum 0
+ */
+offset?: number;
+};
+
+export type ListJournalEntriesStatus = typeof ListJournalEntriesStatus[keyof typeof ListJournalEntriesStatus];
+
+
+export const ListJournalEntriesStatus = {
+  draft: 'draft',
+  posted: 'posted',
+  reversed: 'reversed',
+} as const;
+
 export type ListJournalEntries200 = {
   entries: JournalEntry[];
+};
+
+export type GetGeneralLedgerParams = {
+accountId: string;
+currency: Currency;
+fromDate?: string;
+toDate?: string;
+};
+
+export type GetTrialBalanceParams = {
+asOfDate: string;
+currency: Currency;
+};
+
+export type ListAccountingPeriods200 = {
+  periods: AccountingPeriod[];
 };
 
 export type ListCompanyTaxRules200 = {

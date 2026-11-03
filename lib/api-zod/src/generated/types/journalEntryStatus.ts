@@ -10,6 +10,7 @@ export type JournalEntryStatus = typeof JournalEntryStatus[keyof typeof JournalE
 
 
 export const JournalEntryStatus = {
+  draft: 'draft',
   posted: 'posted',
   reversed: 'reversed',
 } as const;

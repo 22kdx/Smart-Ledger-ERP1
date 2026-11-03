@@ -6,18 +6,20 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { Currency } from './currency';
+import type { JournalLineCreateSide } from './journalLineCreateSide';
 
+/**
+ * Until multi-currency posting is enabled, currency must equal the company base currency.
+ */
 export interface JournalLineCreate {
   accountId: string;
-  /** @minimum 0 */
-  debit: number;
-  /** @minimum 0 */
-  credit: number;
-  transactionCurrency: Currency;
-  /** @minimum 0 */
-  transactionAmount: number;
-  /** @exclusiveMinimum 0 */
-  exchangeRate: number;
-  /** @nullable */
+  side: JournalLineCreateSide;
+  /** @pattern ^(0|[1-9][0-9]{0,15})(\.[0-9]{1,4})?$ */
+  amount: string;
+  currency: Currency;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
   memo?: string | null;
 }

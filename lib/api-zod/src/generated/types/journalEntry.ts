@@ -16,5 +16,16 @@ export interface JournalEntry {
   /** @nullable */
   reference?: string | null;
   status: JournalEntryStatus;
+  /**
+     * @nullable
+     * @pattern ^[A-Z]{3}$
+     */
+  baseCurrency: string | null;
+  /** @nullable */
+  reversalOfId: string | null;
+  createdBy: string;
+  createdAt: Date;
+  /** @nullable */
+  postedAt: Date | null;
   lines: JournalLine[];
 }

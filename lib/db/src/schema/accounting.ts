@@ -1,7 +1,9 @@
 import {
   boolean,
+  check,
   date,
   index,
+  integer,
   jsonb,
   numeric,
   pgEnum,
@@ -12,6 +14,7 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { companies } from "./organization";
 
 export const accountTypeEnum = pgEnum("account_type", [
@@ -21,8 +24,6 @@ export const accountTypeEnum = pgEnum("account_type", [
   "income",
   "expense",
 ]);
-export const journalStatusEnum = pgEnum("journal_status", ["posted", "reversed"]);
-
 export const chartAccounts = pgTable(
   "chart_accounts",
   {
@@ -58,14 +59,25 @@ export const journalEntries = pgTable(
     entryDate: date("entry_date").notNull(),
     description: text("description").notNull(),
     reference: text("reference"),
-    status: journalStatusEnum("status").notNull().default("posted"),
+    status: text("status").notNull().default("draft"),
     createdBy: text("created_by").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    baseCurrency: text("base_currency"),
+    postedAt: timestamp("posted_at", { withTimezone: true }),
+    postedBy: text("posted_by"),
+    reversalOfId: uuid("reversal_of_id"),
     reversedAt: timestamp("reversed_at", { withTimezone: true }),
   },
   (table) => [
     uniqueIndex("journal_entries_company_number_idx").on(table.companyId, table.entryNumber),
     index("journal_entries_company_date_idx").on(table.companyId, table.entryDate),
+    uniqueIndex("journal_entries_reversal_of_unique_idx")
+      .on(table.reversalOfId)
+      .where(sql`${table.reversalOfId} IS NOT NULL`),
+    check(
+      "journal_entries_status_check",
+      sql`${table.status} IN ('draft', 'posted', 'reversed')`,
+    ),
   ],
 );
 
@@ -79,6 +91,7 @@ export const journalLines = pgTable(
     accountId: uuid("account_id")
       .notNull()
       .references(() => chartAccounts.id, { onDelete: "restrict" }),
+    lineNumber: integer("line_number").notNull().default(1),
     memo: text("memo"),
     debit: numeric("debit", { precision: 20, scale: 4 }).notNull().default("0"),
     credit: numeric("credit", { precision: 20, scale: 4 }).notNull().default("0"),
@@ -88,7 +101,46 @@ export const journalLines = pgTable(
       .default("0"),
     exchangeRate: numeric("exchange_rate", { precision: 20, scale: 8 }).notNull(),
   },
-  (table) => [index("journal_lines_entry_idx").on(table.journalEntryId)],
+  (table) => [
+    index("journal_lines_entry_idx").on(table.journalEntryId, table.lineNumber),
+    uniqueIndex("journal_lines_entry_number_idx").on(
+      table.journalEntryId,
+      table.lineNumber,
+    ),
+  ],
+);
+
+export const accountingPeriods = pgTable(
+  "accounting_periods",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    startDate: date("start_date").notNull(),
+    endDate: date("end_date").notNull(),
+    status: text("status").notNull().default("open"),
+    createdBy: text("created_by").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    closedBy: text("closed_by"),
+    closedAt: timestamp("closed_at", { withTimezone: true }),
+  },
+  (table) => [
+    index("accounting_periods_company_date_idx").on(
+      table.companyId,
+      table.startDate,
+      table.endDate,
+    ),
+    check(
+      "accounting_periods_date_order_check",
+      sql`${table.startDate} <= ${table.endDate}`,
+    ),
+    check(
+      "accounting_periods_status_check",
+      sql`${table.status} IN ('open', 'closed')`,
+    ),
+  ],
 );
 
 export const auditEvents = pgTable(

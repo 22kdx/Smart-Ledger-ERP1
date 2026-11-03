@@ -11,10 +11,11 @@ export interface AccountCreate {
   /**
      * @minLength 1
      * @maxLength 32
+     * @pattern ^[A-Za-z0-9._-]+$
      */
   code: string;
   /**
-     * @minLength 2
+     * @minLength 1
      * @maxLength 160
      */
   name: string;

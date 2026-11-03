@@ -243,8 +243,51 @@ paths:
                 $ref: "#/components/schemas/Account"
         "400":
           description: Invalid account details
+        "409":
+          description: Duplicate account code or invalid parent account
         "403":
           description: Insufficient company role
+  /companies/{companyId}/accounts/{accountId}:
+    parameters:
+      - name: companyId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: accountId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    patch:
+      operationId: updateAccount
+      tags: [accounting]
+      summary: Update or deactivate a chart account
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AccountUpdate"
+      responses:
+        "200":
+          description: Updated account
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Account"
+        "400":
+          description: Invalid account update
+        "403":
+          description: Insufficient company role
+        "404":
+          description: Account not found
+        "409":
+          description: Account has posted activity or invalid parent
   /companies/{companyId}/journals:
     parameters:
       - name: companyId
@@ -256,9 +299,38 @@ paths:
     get:
       operationId: listJournalEntries
       tags: [accounting]
-      summary: List posted journal entries
+      summary: List journal entries
       security:
         - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [draft, posted, reversed]
+        - name: fromDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: toDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
       responses:
         "200":
           description: Journal entries with lines
@@ -277,8 +349,8 @@ paths:
     post:
       operationId: createJournalEntry
       tags: [accounting]
-      summary: Post a balanced journal entry
-      description: Posted entries are immutable; corrections must use a reversing entry.
+      summary: Create a journal entry draft
+      description: Create a draft. Posting is a separate action; posted entries are immutable and corrections require a reversing entry.
       security:
         - bearerAuth: []
       requestBody:
@@ -289,15 +361,319 @@ paths:
               $ref: "#/components/schemas/JournalEntryCreate"
       responses:
         "201":
-          description: Journal entry posted
+          description: Journal draft created
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/JournalEntry"
         "400":
-          description: Unbalanced or invalid journal entry
+          description: Invalid journal draft
         "403":
           description: Insufficient company role
+  /companies/{companyId}/journals/{journalEntryId}:
+    parameters:
+      - name: companyId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: journalEntryId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getJournalEntry
+      tags: [accounting]
+      summary: Get a journal entry and its lines
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Journal entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JournalEntry"
+        "404":
+          description: Journal entry not found
+    patch:
+      operationId: updateJournalEntry
+      tags: [accounting]
+      summary: Update a draft journal entry
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JournalEntryUpdate"
+      responses:
+        "200":
+          description: Updated journal draft
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JournalEntry"
+        "400":
+          description: Invalid draft
+        "404":
+          description: Draft not found
+        "409":
+          description: Posted entries are immutable
+    delete:
+      operationId: deleteJournalEntry
+      tags: [accounting]
+      summary: Delete a draft journal entry
+      security:
+        - bearerAuth: []
+      responses:
+        "204":
+          description: Draft deleted
+        "404":
+          description: Draft not found
+        "409":
+          description: Posted entries cannot be deleted
+  /companies/{companyId}/journals/{journalEntryId}/post:
+    parameters:
+      - name: companyId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: journalEntryId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: postJournalEntry
+      tags: [accounting]
+      summary: Validate and post a balanced draft
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Posted journal entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JournalEntry"
+        "404":
+          description: Draft not found
+        "409":
+          description: Unbalanced entry, closed period, inactive account, or invalid state
+  /companies/{companyId}/journals/{journalEntryId}/reverse:
+    parameters:
+      - name: companyId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: journalEntryId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: reverseJournalEntry
+      tags: [accounting]
+      summary: Reverse a posted journal entry
+      description: Creates an immutable opposite entry; the original is retained for audit.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JournalReversalCreate"
+      responses:
+        "201":
+          description: Reversal entry created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JournalEntry"
+        "404":
+          description: Journal entry not found
+        "409":
+          description: Entry is not posted or has already been reversed
+  /companies/{companyId}/ledger:
+    get:
+      operationId: getGeneralLedger
+      tags: [accounting]
+      summary: Read an account ledger for a date range
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: accountId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: currency
+          in: query
+          required: true
+          schema:
+            $ref: "#/components/schemas/Currency"
+        - name: fromDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: toDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000
+            default: 200
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        "200":
+          description: Account ledger and running balances
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GeneralLedger"
+        "404":
+          description: Account not found
+  /companies/{companyId}/trial-balance:
+    get:
+      operationId: getTrialBalance
+      tags: [accounting]
+      summary: Read the trial balance as of a date
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: companyId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: asOfDate
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: currency
+          in: query
+          required: true
+          schema:
+            $ref: "#/components/schemas/Currency"
+      responses:
+        "200":
+          description: Trial balance totals
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrialBalance"
+  /companies/{companyId}/accounting-periods:
+    parameters:
+      - name: companyId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: listAccountingPeriods
+      tags: [accounting]
+      summary: List accounting periods
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Accounting periods
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [periods]
+                properties:
+                  periods:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AccountingPeriod"
+    post:
+      operationId: createAccountingPeriod
+      tags: [accounting]
+      summary: Create a non-overlapping accounting period
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AccountingPeriodCreate"
+      responses:
+        "201":
+          description: Accounting period created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountingPeriod"
+        "409":
+          description: Period overlaps another period
+  /companies/{companyId}/accounting-periods/{periodId}/close:
+    parameters:
+      - name: companyId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: periodId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: closeAccountingPeriod
+      tags: [accounting]
+      summary: Close an accounting period with no draft entries
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Closed accounting period
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountingPeriod"
+        "404":
+          description: Period not found
+        "409":
+          description: Period already closed or still has drafts
   /companies/{companyId}/authorization:
     parameters:
       - name: companyId
@@ -871,9 +1247,10 @@ components:
           type: string
           minLength: 1
           maxLength: 32
+          pattern: "^[A-Za-z0-9._-]+$"
         name:
           type: string
-          minLength: 2
+          minLength: 1
           maxLength: 160
         type:
           type: string
@@ -901,30 +1278,41 @@ components:
           type: boolean
         isActive:
           type: boolean
-      required: [id, code, name, type, isSystem, isActive]
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, code, name, type, parentAccountId, isSystem, isActive, createdAt]
+    AccountUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 160
+        parentAccountId:
+          type: [string, "null"]
+          format: uuid
+        isActive:
+          type: boolean
     JournalLineCreate:
       type: object
+      description: Until multi-currency posting is enabled, currency must equal the company base currency.
       properties:
         accountId:
           type: string
           format: uuid
-        debit:
-          type: number
-          minimum: 0
-        credit:
-          type: number
-          minimum: 0
-        transactionCurrency:
+        side:
+          type: string
+          enum: [debit, credit]
+        amount:
+          type: string
+          pattern: "^(0|[1-9][0-9]{0,15})(\\.[0-9]{1,4})?$"
+        currency:
           $ref: "#/components/schemas/Currency"
-        transactionAmount:
-          type: number
-          minimum: 0
-        exchangeRate:
-          type: number
-          exclusiveMinimum: 0
         memo:
           type: [string, "null"]
-      required: [accountId, debit, credit, transactionCurrency, transactionAmount, exchangeRate]
+          maxLength: 500
+      required: [accountId, side, amount, currency]
     JournalLine:
       allOf:
         - $ref: "#/components/schemas/JournalLineCreate"
@@ -933,11 +1321,13 @@ components:
             id:
               type: string
               format: uuid
+            lineNumber:
+              type: integer
             accountCode:
               type: string
             accountName:
               type: string
-          required: [id, accountCode, accountName]
+          required: [id, lineNumber, accountCode, accountName]
     JournalEntryCreate:
       type: object
       properties:
@@ -953,10 +1343,42 @@ components:
           maxLength: 100
         lines:
           type: array
-          minItems: 2
+          maxItems: 100
           items:
             $ref: "#/components/schemas/JournalLineCreate"
       required: [entryDate, description, lines]
+    JournalEntryUpdate:
+      type: object
+      properties:
+        entryDate:
+          type: string
+          format: date
+        description:
+          type: string
+          minLength: 2
+          maxLength: 500
+        reference:
+          type: [string, "null"]
+          maxLength: 100
+        lines:
+          type: array
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/JournalLineCreate"
+    JournalReversalCreate:
+      type: object
+      properties:
+        entryDate:
+          type: string
+          format: date
+        description:
+          type: string
+          minLength: 2
+          maxLength: 500
+        reference:
+          type: [string, "null"]
+          maxLength: 100
+      required: [entryDate]
     JournalEntry:
       type: object
       properties:
@@ -974,12 +1396,134 @@ components:
           type: [string, "null"]
         status:
           type: string
-          enum: [posted, reversed]
+          enum: [draft, posted, reversed]
+        baseCurrency:
+          type: [string, "null"]
+          pattern: "^[A-Z]{3}$"
+        reversalOfId:
+          type: [string, "null"]
+          format: uuid
+        createdBy:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        postedAt:
+          type: [string, "null"]
+          format: date-time
         lines:
           type: array
           items:
             $ref: "#/components/schemas/JournalLine"
-      required: [id, entryNumber, entryDate, description, status, lines]
+      required: [id, entryNumber, entryDate, description, status, baseCurrency, reversalOfId, createdBy, createdAt, postedAt, lines]
+    AccountingPeriod:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        status:
+          type: string
+          enum: [open, closed]
+        closedAt:
+          type: [string, "null"]
+          format: date-time
+      required: [id, name, startDate, endDate, status, closedAt]
+    AccountingPeriodCreate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+      required: [name, startDate, endDate]
+    GeneralLedger:
+      type: object
+      properties:
+        account:
+          $ref: "#/components/schemas/Account"
+        currency:
+          $ref: "#/components/schemas/Currency"
+        fromDate:
+          type: [string, "null"]
+          format: date
+        toDate:
+          type: [string, "null"]
+          format: date
+        openingBalance:
+          type: string
+        closingBalance:
+          type: string
+        totalLines:
+          type: integer
+        nextOffset:
+          type: [integer, "null"]
+        lines:
+          type: array
+          items:
+            type: object
+            properties:
+              journalEntryId:
+                type: string
+                format: uuid
+              entryNumber:
+                type: string
+              entryDate:
+                type: string
+                format: date
+              description:
+                type: string
+              debit:
+                type: string
+              credit:
+                type: string
+              runningBalance:
+                type: string
+            required: [journalEntryId, entryNumber, entryDate, description, debit, credit, runningBalance]
+      required: [account, currency, fromDate, toDate, openingBalance, closingBalance, totalLines, nextOffset, lines]
+    TrialBalance:
+      type: object
+      properties:
+        asOfDate:
+          type: string
+          format: date
+        currency:
+          $ref: "#/components/schemas/Currency"
+        accounts:
+          type: array
+          items:
+            type: object
+            properties:
+              account:
+                $ref: "#/components/schemas/Account"
+              debit:
+                type: string
+              credit:
+                type: string
+              balance:
+                type: string
+            required: [account, debit, credit, balance]
+        totalDebit:
+          type: string
+        totalCredit:
+          type: string
+        isBalanced:
+          type: boolean
+      required: [asOfDate, currency, accounts, totalDebit, totalCredit, isBalanced]
     CompanyTaxRule:
       type: object
       properties:

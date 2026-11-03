@@ -198,9 +198,10 @@ export const ListAccountsResponse = zod.object({
   "code": zod.string(),
   "name": zod.string(),
   "type": zod.enum(['asset', 'liability', 'equity', 'income', 'expense']),
-  "parentAccountId": zod.string().nullish(),
+  "parentAccountId": zod.string().nullable(),
   "isSystem": zod.boolean(),
-  "isActive": zod.boolean()
+  "isActive": zod.boolean(),
+  "createdAt": zod.coerce.date()
 }))
 })
 
@@ -214,14 +215,15 @@ export const CreateAccountParams = zod.object({
 
 export const createAccountBodyCodeMax = 32;
 
-export const createAccountBodyNameMin = 2;
+
+export const createAccountBodyCodeRegExp = new RegExp('^[A-Za-z0-9._-]+$');
 export const createAccountBodyNameMax = 160;
 
 
 
 export const CreateAccountBody = zod.object({
-  "code": zod.string().min(1).max(createAccountBodyCodeMax),
-  "name": zod.string().min(createAccountBodyNameMin).max(createAccountBodyNameMax),
+  "code": zod.string().min(1).max(createAccountBodyCodeMax).regex(createAccountBodyCodeRegExp),
+  "name": zod.string().min(1).max(createAccountBodyNameMax),
   "type": zod.enum(['asset', 'liability', 'equity', 'income', 'expense']),
   "parentAccountId": zod.string().uuid().nullish()
 })
@@ -231,27 +233,70 @@ export const CreateAccountResponse = zod.object({
   "code": zod.string(),
   "name": zod.string(),
   "type": zod.enum(['asset', 'liability', 'equity', 'income', 'expense']),
-  "parentAccountId": zod.string().nullish(),
+  "parentAccountId": zod.string().nullable(),
   "isSystem": zod.boolean(),
-  "isActive": zod.boolean()
+  "isActive": zod.boolean(),
+  "createdAt": zod.coerce.date()
 })
 
 
 /**
- * @summary List posted journal entries
+ * @summary Update or deactivate a chart account
+ */
+export const UpdateAccountParams = zod.object({
+  "companyId": zod.coerce.string().uuid(),
+  "accountId": zod.coerce.string().uuid()
+})
+
+export const updateAccountBodyNameMax = 160;
+
+
+
+export const UpdateAccountBody = zod.object({
+  "name": zod.string().min(1).max(updateAccountBodyNameMax).optional(),
+  "parentAccountId": zod.string().uuid().nullish(),
+  "isActive": zod.boolean().optional()
+})
+
+export const UpdateAccountResponse = zod.object({
+  "id": zod.string().uuid(),
+  "code": zod.string(),
+  "name": zod.string(),
+  "type": zod.enum(['asset', 'liability', 'equity', 'income', 'expense']),
+  "parentAccountId": zod.string().nullable(),
+  "isSystem": zod.boolean(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary List journal entries
  */
 export const ListJournalEntriesParams = zod.object({
   "companyId": zod.coerce.string().uuid()
 })
 
-export const listJournalEntriesResponseEntriesItemLinesItemOneDebitMin = 0;
+export const listJournalEntriesQueryLimitDefault = 50;
+export const listJournalEntriesQueryLimitMax = 100;
 
-export const listJournalEntriesResponseEntriesItemLinesItemOneCreditMin = 0;
+export const listJournalEntriesQueryOffsetDefault = 0;
+export const listJournalEntriesQueryOffsetMin = 0;
 
-export const listJournalEntriesResponseEntriesItemLinesItemOneTransactionCurrencyRegExp = new RegExp('^[A-Z]{3}$');
-export const listJournalEntriesResponseEntriesItemLinesItemOneTransactionAmountMin = 0;
 
-export const listJournalEntriesResponseEntriesItemLinesItemOneExchangeRateExclusiveMin = 0;
+
+export const ListJournalEntriesQueryParams = zod.object({
+  "status": zod.enum(['draft', 'posted', 'reversed']).optional(),
+  "fromDate": zod.date().optional(),
+  "toDate": zod.date().optional(),
+  "limit": zod.coerce.number().int().min(1).max(listJournalEntriesQueryLimitMax).default(listJournalEntriesQueryLimitDefault),
+  "offset": zod.coerce.number().int().min(listJournalEntriesQueryOffsetMin).default(listJournalEntriesQueryOffsetDefault)
+})
+
+export const listJournalEntriesResponseEntriesItemBaseCurrencyRegExp = new RegExp('^[A-Z]{3}$');
+export const listJournalEntriesResponseEntriesItemLinesItemOneAmountRegExp = new RegExp('^(0|[1-9][0-9]{0,15})(\\.[0-9]{1,4})?$');
+export const listJournalEntriesResponseEntriesItemLinesItemOneCurrencyRegExp = new RegExp('^[A-Z]{3}$');
+export const listJournalEntriesResponseEntriesItemLinesItemOneMemoMax = 500;
 
 
 
@@ -262,17 +307,21 @@ export const ListJournalEntriesResponse = zod.object({
   "entryDate": zod.coerce.date(),
   "description": zod.string(),
   "reference": zod.string().nullish(),
-  "status": zod.enum(['posted', 'reversed']),
+  "status": zod.enum(['draft', 'posted', 'reversed']),
+  "baseCurrency": zod.string().regex(listJournalEntriesResponseEntriesItemBaseCurrencyRegExp).nullable(),
+  "reversalOfId": zod.string().uuid().nullable(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "postedAt": zod.coerce.date().nullable(),
   "lines": zod.array(zod.object({
   "accountId": zod.string().uuid(),
-  "debit": zod.number().min(listJournalEntriesResponseEntriesItemLinesItemOneDebitMin),
-  "credit": zod.number().min(listJournalEntriesResponseEntriesItemLinesItemOneCreditMin),
-  "transactionCurrency": zod.string().regex(listJournalEntriesResponseEntriesItemLinesItemOneTransactionCurrencyRegExp).describe('رمز عملة من ثلاثة أحرف، وتُحدد العملات المتاحة لكل منشأة من إعداداتها.'),
-  "transactionAmount": zod.number().min(listJournalEntriesResponseEntriesItemLinesItemOneTransactionAmountMin),
-  "exchangeRate": zod.number().gt(listJournalEntriesResponseEntriesItemLinesItemOneExchangeRateExclusiveMin),
-  "memo": zod.string().nullish()
-}).and(zod.object({
+  "side": zod.enum(['debit', 'credit']),
+  "amount": zod.string().regex(listJournalEntriesResponseEntriesItemLinesItemOneAmountRegExp),
+  "currency": zod.string().regex(listJournalEntriesResponseEntriesItemLinesItemOneCurrencyRegExp).describe('رمز عملة من ثلاثة أحرف، وتُحدد العملات المتاحة لكل منشأة من إعداداتها.'),
+  "memo": zod.string().max(listJournalEntriesResponseEntriesItemLinesItemOneMemoMax).nullish()
+}).describe('Until multi-currency posting is enabled, currency must equal the company base currency.').and(zod.object({
   "id": zod.string().uuid(),
+  "lineNumber": zod.number().int(),
   "accountCode": zod.string(),
   "accountName": zod.string()
 })))
@@ -281,8 +330,8 @@ export const ListJournalEntriesResponse = zod.object({
 
 
 /**
- * Posted entries are immutable; corrections must use a reversing entry.
- * @summary Post a balanced journal entry
+ * Create a draft. Posting is a separate action; posted entries are immutable and corrections require a reversing entry.
+ * @summary Create a journal entry draft
  */
 export const CreateJournalEntryParams = zod.object({
   "companyId": zod.coerce.string().uuid()
@@ -293,16 +342,11 @@ export const createJournalEntryBodyDescriptionMax = 500;
 
 export const createJournalEntryBodyReferenceMax = 100;
 
-export const createJournalEntryBodyLinesItemDebitMin = 0;
+export const createJournalEntryBodyLinesItemAmountRegExp = new RegExp('^(0|[1-9][0-9]{0,15})(\\.[0-9]{1,4})?$');
+export const createJournalEntryBodyLinesItemCurrencyRegExp = new RegExp('^[A-Z]{3}$');
+export const createJournalEntryBodyLinesItemMemoMax = 500;
 
-export const createJournalEntryBodyLinesItemCreditMin = 0;
-
-export const createJournalEntryBodyLinesItemTransactionCurrencyRegExp = new RegExp('^[A-Z]{3}$');
-export const createJournalEntryBodyLinesItemTransactionAmountMin = 0;
-
-export const createJournalEntryBodyLinesItemExchangeRateExclusiveMin = 0;
-
-export const createJournalEntryBodyLinesMin = 2;
+export const createJournalEntryBodyLinesMax = 100;
 
 
 
@@ -312,23 +356,17 @@ export const CreateJournalEntryBody = zod.object({
   "reference": zod.string().max(createJournalEntryBodyReferenceMax).nullish(),
   "lines": zod.array(zod.object({
   "accountId": zod.string().uuid(),
-  "debit": zod.number().min(createJournalEntryBodyLinesItemDebitMin),
-  "credit": zod.number().min(createJournalEntryBodyLinesItemCreditMin),
-  "transactionCurrency": zod.string().regex(createJournalEntryBodyLinesItemTransactionCurrencyRegExp).describe('رمز عملة من ثلاثة أحرف، وتُحدد العملات المتاحة لكل منشأة من إعداداتها.'),
-  "transactionAmount": zod.number().min(createJournalEntryBodyLinesItemTransactionAmountMin),
-  "exchangeRate": zod.number().gt(createJournalEntryBodyLinesItemExchangeRateExclusiveMin),
-  "memo": zod.string().nullish()
-})).min(createJournalEntryBodyLinesMin)
+  "side": zod.enum(['debit', 'credit']),
+  "amount": zod.string().regex(createJournalEntryBodyLinesItemAmountRegExp),
+  "currency": zod.string().regex(createJournalEntryBodyLinesItemCurrencyRegExp).describe('رمز عملة من ثلاثة أحرف، وتُحدد العملات المتاحة لكل منشأة من إعداداتها.'),
+  "memo": zod.string().max(createJournalEntryBodyLinesItemMemoMax).nullish()
+}).describe('Until multi-currency posting is enabled, currency must equal the company base currency.')).max(createJournalEntryBodyLinesMax)
 })
 
-export const createJournalEntryResponseLinesItemOneDebitMin = 0;
-
-export const createJournalEntryResponseLinesItemOneCreditMin = 0;
-
-export const createJournalEntryResponseLinesItemOneTransactionCurrencyRegExp = new RegExp('^[A-Z]{3}$');
-export const createJournalEntryResponseLinesItemOneTransactionAmountMin = 0;
-
-export const createJournalEntryResponseLinesItemOneExchangeRateExclusiveMin = 0;
+export const createJournalEntryResponseBaseCurrencyRegExp = new RegExp('^[A-Z]{3}$');
+export const createJournalEntryResponseLinesItemOneAmountRegExp = new RegExp('^(0|[1-9][0-9]{0,15})(\\.[0-9]{1,4})?$');
+export const createJournalEntryResponseLinesItemOneCurrencyRegExp = new RegExp('^[A-Z]{3}$');
+export const createJournalEntryResponseLinesItemOneMemoMax = 500;
 
 
 
@@ -338,20 +376,397 @@ export const CreateJournalEntryResponse = zod.object({
   "entryDate": zod.coerce.date(),
   "description": zod.string(),
   "reference": zod.string().nullish(),
-  "status": zod.enum(['posted', 'reversed']),
+  "status": zod.enum(['draft', 'posted', 'reversed']),
+  "baseCurrency": zod.string().regex(createJournalEntryResponseBaseCurrencyRegExp).nullable(),
+  "reversalOfId": zod.string().uuid().nullable(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "postedAt": zod.coerce.date().nullable(),
   "lines": zod.array(zod.object({
   "accountId": zod.string().uuid(),
-  "debit": zod.number().min(createJournalEntryResponseLinesItemOneDebitMin),
-  "credit": zod.number().min(createJournalEntryResponseLinesItemOneCreditMin),
-  "transactionCurrency": zod.string().regex(createJournalEntryResponseLinesItemOneTransactionCurrencyRegExp).describe('رمز عملة من ثلاثة أحرف، وتُحدد العملات المتاحة لكل منشأة من إعداداتها.'),
-  "transactionAmount": zod.number().min(createJournalEntryResponseLinesItemOneTransactionAmountMin),
-  "exchangeRate": zod.number().gt(createJournalEntryResponseLinesItemOneExchangeRateExclusiveMin),
-  "memo": zod.string().nullish()
-}).and(zod.object({
+  "side": zod.enum(['debit', 'credit']),
+  "amount": zod.string().regex(createJournalEntryResponseLinesItemOneAmountRegExp),
+  "currency": zod.string().regex(createJournalEntryResponseLinesItemOneCurrencyRegExp).describe('رمز عملة من ثلاثة أحرف، وتُحدد العملات المتاحة لكل منشأة من إعداداتها.'),
+  "memo": zod.string().max(createJournalEntryResponseLinesItemOneMemoMax).nullish()
+}).describe('Until multi-currency posting is enabled, currency must equal the company base currency.').and(zod.object({
   "id": zod.string().uuid(),
+  "lineNumber": zod.number().int(),
   "accountCode": zod.string(),
   "accountName": zod.string()
 })))
+})
+
+
+/**
+ * @summary Get a journal entry and its lines
+ */
+export const GetJournalEntryParams = zod.object({
+  "companyId": zod.coerce.string().uuid(),
+  "journalEntryId": zod.coerce.string().uuid()
+})
+
+export const getJournalEntryResponseBaseCurrencyRegExp = new RegExp('^[A-Z]{3}$');
+export const getJournalEntryResponseLinesItemOneAmountRegExp = new RegExp('^(0|[1-9][0-9]{0,15})(\\.[0-9]{1,4})?$');
+export const getJournalEntryResponseLinesItemOneCurrencyRegExp = new RegExp('^[A-Z]{3}$');
+export const getJournalEntryResponseLinesItemOneMemoMax = 500;
+
+
+
+export const GetJournalEntryResponse = zod.object({
+  "id": zod.string().uuid(),
+  "entryNumber": zod.string(),
+  "entryDate": zod.coerce.date(),
+  "description": zod.string(),
+  "reference": zod.string().nullish(),
+  "status": zod.enum(['draft', 'posted', 'reversed']),
+  "baseCurrency": zod.string().regex(getJournalEntryResponseBaseCurrencyRegExp).nullable(),
+  "reversalOfId": zod.string().uuid().nullable(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "postedAt": zod.coerce.date().nullable(),
+  "lines": zod.array(zod.object({
+  "accountId": zod.string().uuid(),
+  "side": zod.enum(['debit', 'credit']),
+  "amount": zod.string().regex(getJournalEntryResponseLinesItemOneAmountRegExp),
+  "currency": zod.string().regex(getJournalEntryResponseLinesItemOneCurrencyRegExp).describe('رمز عملة من ثلاثة أحرف، وتُحدد العملات المتاحة لكل منشأة من إعداداتها.'),
+  "memo": zod.string().max(getJournalEntryResponseLinesItemOneMemoMax).nullish()
+}).describe('Until multi-currency posting is enabled, currency must equal the company base currency.').and(zod.object({
+  "id": zod.string().uuid(),
+  "lineNumber": zod.number().int(),
+  "accountCode": zod.string(),
+  "accountName": zod.string()
+})))
+})
+
+
+/**
+ * @summary Update a draft journal entry
+ */
+export const UpdateJournalEntryParams = zod.object({
+  "companyId": zod.coerce.string().uuid(),
+  "journalEntryId": zod.coerce.string().uuid()
+})
+
+export const updateJournalEntryBodyDescriptionMin = 2;
+export const updateJournalEntryBodyDescriptionMax = 500;
+
+export const updateJournalEntryBodyReferenceMax = 100;
+
+export const updateJournalEntryBodyLinesItemAmountRegExp = new RegExp('^(0|[1-9][0-9]{0,15})(\\.[0-9]{1,4})?$');
+export const updateJournalEntryBodyLinesItemCurrencyRegExp = new RegExp('^[A-Z]{3}$');
+export const updateJournalEntryBodyLinesItemMemoMax = 500;
+
+export const updateJournalEntryBodyLinesMax = 100;
+
+
+
+export const UpdateJournalEntryBody = zod.object({
+  "entryDate": zod.coerce.date().optional(),
+  "description": zod.string().min(updateJournalEntryBodyDescriptionMin).max(updateJournalEntryBodyDescriptionMax).optional(),
+  "reference": zod.string().max(updateJournalEntryBodyReferenceMax).nullish(),
+  "lines": zod.array(zod.object({
+  "accountId": zod.string().uuid(),
+  "side": zod.enum(['debit', 'credit']),
+  "amount": zod.string().regex(updateJournalEntryBodyLinesItemAmountRegExp),
+  "currency": zod.string().regex(updateJournalEntryBodyLinesItemCurrencyRegExp).describe('رمز عملة من ثلاثة أحرف، وتُحدد العملات المتاحة لكل منشأة من إعداداتها.'),
+  "memo": zod.string().max(updateJournalEntryBodyLinesItemMemoMax).nullish()
+}).describe('Until multi-currency posting is enabled, currency must equal the company base currency.')).max(updateJournalEntryBodyLinesMax).optional()
+})
+
+export const updateJournalEntryResponseBaseCurrencyRegExp = new RegExp('^[A-Z]{3}$');
+export const updateJournalEntryResponseLinesItemOneAmountRegExp = new RegExp('^(0|[1-9][0-9]{0,15})(\\.[0-9]{1,4})?$');
+export const updateJournalEntryResponseLinesItemOneCurrencyRegExp = new RegExp('^[A-Z]{3}$');
+export const updateJournalEntryResponseLinesItemOneMemoMax = 500;
+
+
+
+export const UpdateJournalEntryResponse = zod.object({
+  "id": zod.string().uuid(),
+  "entryNumber": zod.string(),
+  "entryDate": zod.coerce.date(),
+  "description": zod.string(),
+  "reference": zod.string().nullish(),
+  "status": zod.enum(['draft', 'posted', 'reversed']),
+  "baseCurrency": zod.string().regex(updateJournalEntryResponseBaseCurrencyRegExp).nullable(),
+  "reversalOfId": zod.string().uuid().nullable(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "postedAt": zod.coerce.date().nullable(),
+  "lines": zod.array(zod.object({
+  "accountId": zod.string().uuid(),
+  "side": zod.enum(['debit', 'credit']),
+  "amount": zod.string().regex(updateJournalEntryResponseLinesItemOneAmountRegExp),
+  "currency": zod.string().regex(updateJournalEntryResponseLinesItemOneCurrencyRegExp).describe('رمز عملة من ثلاثة أحرف، وتُحدد العملات المتاحة لكل منشأة من إعداداتها.'),
+  "memo": zod.string().max(updateJournalEntryResponseLinesItemOneMemoMax).nullish()
+}).describe('Until multi-currency posting is enabled, currency must equal the company base currency.').and(zod.object({
+  "id": zod.string().uuid(),
+  "lineNumber": zod.number().int(),
+  "accountCode": zod.string(),
+  "accountName": zod.string()
+})))
+})
+
+
+/**
+ * @summary Delete a draft journal entry
+ */
+export const DeleteJournalEntryParams = zod.object({
+  "companyId": zod.coerce.string().uuid(),
+  "journalEntryId": zod.coerce.string().uuid()
+})
+
+export const DeleteJournalEntryResponse = zod.void()
+
+
+/**
+ * @summary Validate and post a balanced draft
+ */
+export const PostJournalEntryParams = zod.object({
+  "companyId": zod.coerce.string().uuid(),
+  "journalEntryId": zod.coerce.string().uuid()
+})
+
+export const postJournalEntryResponseBaseCurrencyRegExp = new RegExp('^[A-Z]{3}$');
+export const postJournalEntryResponseLinesItemOneAmountRegExp = new RegExp('^(0|[1-9][0-9]{0,15})(\\.[0-9]{1,4})?$');
+export const postJournalEntryResponseLinesItemOneCurrencyRegExp = new RegExp('^[A-Z]{3}$');
+export const postJournalEntryResponseLinesItemOneMemoMax = 500;
+
+
+
+export const PostJournalEntryResponse = zod.object({
+  "id": zod.string().uuid(),
+  "entryNumber": zod.string(),
+  "entryDate": zod.coerce.date(),
+  "description": zod.string(),
+  "reference": zod.string().nullish(),
+  "status": zod.enum(['draft', 'posted', 'reversed']),
+  "baseCurrency": zod.string().regex(postJournalEntryResponseBaseCurrencyRegExp).nullable(),
+  "reversalOfId": zod.string().uuid().nullable(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "postedAt": zod.coerce.date().nullable(),
+  "lines": zod.array(zod.object({
+  "accountId": zod.string().uuid(),
+  "side": zod.enum(['debit', 'credit']),
+  "amount": zod.string().regex(postJournalEntryResponseLinesItemOneAmountRegExp),
+  "currency": zod.string().regex(postJournalEntryResponseLinesItemOneCurrencyRegExp).describe('رمز عملة من ثلاثة أحرف، وتُحدد العملات المتاحة لكل منشأة من إعداداتها.'),
+  "memo": zod.string().max(postJournalEntryResponseLinesItemOneMemoMax).nullish()
+}).describe('Until multi-currency posting is enabled, currency must equal the company base currency.').and(zod.object({
+  "id": zod.string().uuid(),
+  "lineNumber": zod.number().int(),
+  "accountCode": zod.string(),
+  "accountName": zod.string()
+})))
+})
+
+
+/**
+ * Creates an immutable opposite entry; the original is retained for audit.
+ * @summary Reverse a posted journal entry
+ */
+export const ReverseJournalEntryParams = zod.object({
+  "companyId": zod.coerce.string().uuid(),
+  "journalEntryId": zod.coerce.string().uuid()
+})
+
+export const reverseJournalEntryBodyDescriptionMin = 2;
+export const reverseJournalEntryBodyDescriptionMax = 500;
+
+export const reverseJournalEntryBodyReferenceMax = 100;
+
+
+
+export const ReverseJournalEntryBody = zod.object({
+  "entryDate": zod.coerce.date(),
+  "description": zod.string().min(reverseJournalEntryBodyDescriptionMin).max(reverseJournalEntryBodyDescriptionMax).optional(),
+  "reference": zod.string().max(reverseJournalEntryBodyReferenceMax).nullish()
+})
+
+export const reverseJournalEntryResponseBaseCurrencyRegExp = new RegExp('^[A-Z]{3}$');
+export const reverseJournalEntryResponseLinesItemOneAmountRegExp = new RegExp('^(0|[1-9][0-9]{0,15})(\\.[0-9]{1,4})?$');
+export const reverseJournalEntryResponseLinesItemOneCurrencyRegExp = new RegExp('^[A-Z]{3}$');
+export const reverseJournalEntryResponseLinesItemOneMemoMax = 500;
+
+
+
+export const ReverseJournalEntryResponse = zod.object({
+  "id": zod.string().uuid(),
+  "entryNumber": zod.string(),
+  "entryDate": zod.coerce.date(),
+  "description": zod.string(),
+  "reference": zod.string().nullish(),
+  "status": zod.enum(['draft', 'posted', 'reversed']),
+  "baseCurrency": zod.string().regex(reverseJournalEntryResponseBaseCurrencyRegExp).nullable(),
+  "reversalOfId": zod.string().uuid().nullable(),
+  "createdBy": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "postedAt": zod.coerce.date().nullable(),
+  "lines": zod.array(zod.object({
+  "accountId": zod.string().uuid(),
+  "side": zod.enum(['debit', 'credit']),
+  "amount": zod.string().regex(reverseJournalEntryResponseLinesItemOneAmountRegExp),
+  "currency": zod.string().regex(reverseJournalEntryResponseLinesItemOneCurrencyRegExp).describe('رمز عملة من ثلاثة أحرف، وتُحدد العملات المتاحة لكل منشأة من إعداداتها.'),
+  "memo": zod.string().max(reverseJournalEntryResponseLinesItemOneMemoMax).nullish()
+}).describe('Until multi-currency posting is enabled, currency must equal the company base currency.').and(zod.object({
+  "id": zod.string().uuid(),
+  "lineNumber": zod.number().int(),
+  "accountCode": zod.string(),
+  "accountName": zod.string()
+})))
+})
+
+
+/**
+ * @summary Read an account ledger for a date range
+ */
+export const GetGeneralLedgerParams = zod.object({
+  "companyId": zod.coerce.string().uuid()
+})
+
+export const getGeneralLedgerQueryCurrencyRegExp = new RegExp('^[A-Z]{3}$');
+
+
+export const GetGeneralLedgerQueryParams = zod.object({
+  "accountId": zod.coerce.string().uuid(),
+  "currency": zod.coerce.string().regex(getGeneralLedgerQueryCurrencyRegExp),
+  "fromDate": zod.date().optional(),
+  "toDate": zod.date().optional()
+})
+
+export const getGeneralLedgerResponseCurrencyRegExp = new RegExp('^[A-Z]{3}$');
+
+
+export const GetGeneralLedgerResponse = zod.object({
+  "account": zod.object({
+  "id": zod.string().uuid(),
+  "code": zod.string(),
+  "name": zod.string(),
+  "type": zod.enum(['asset', 'liability', 'equity', 'income', 'expense']),
+  "parentAccountId": zod.string().nullable(),
+  "isSystem": zod.boolean(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.coerce.date()
+}),
+  "currency": zod.string().regex(getGeneralLedgerResponseCurrencyRegExp).describe('رمز عملة من ثلاثة أحرف، وتُحدد العملات المتاحة لكل منشأة من إعداداتها.'),
+  "fromDate": zod.coerce.date().nullable(),
+  "toDate": zod.coerce.date().nullable(),
+  "openingBalance": zod.string(),
+  "closingBalance": zod.string(),
+  "lines": zod.array(zod.object({
+  "journalEntryId": zod.string().uuid(),
+  "entryNumber": zod.string(),
+  "entryDate": zod.coerce.date(),
+  "description": zod.string(),
+  "debit": zod.string(),
+  "credit": zod.string(),
+  "runningBalance": zod.string()
+}))
+})
+
+
+/**
+ * @summary Read the trial balance as of a date
+ */
+export const GetTrialBalanceParams = zod.object({
+  "companyId": zod.coerce.string().uuid()
+})
+
+export const getTrialBalanceQueryCurrencyRegExp = new RegExp('^[A-Z]{3}$');
+
+
+export const GetTrialBalanceQueryParams = zod.object({
+  "asOfDate": zod.date(),
+  "currency": zod.coerce.string().regex(getTrialBalanceQueryCurrencyRegExp)
+})
+
+export const getTrialBalanceResponseCurrencyRegExp = new RegExp('^[A-Z]{3}$');
+
+
+export const GetTrialBalanceResponse = zod.object({
+  "asOfDate": zod.coerce.date(),
+  "currency": zod.string().regex(getTrialBalanceResponseCurrencyRegExp).describe('رمز عملة من ثلاثة أحرف، وتُحدد العملات المتاحة لكل منشأة من إعداداتها.'),
+  "accounts": zod.array(zod.object({
+  "account": zod.object({
+  "id": zod.string().uuid(),
+  "code": zod.string(),
+  "name": zod.string(),
+  "type": zod.enum(['asset', 'liability', 'equity', 'income', 'expense']),
+  "parentAccountId": zod.string().nullable(),
+  "isSystem": zod.boolean(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.coerce.date()
+}),
+  "debit": zod.string(),
+  "credit": zod.string(),
+  "balance": zod.string()
+})),
+  "totalDebit": zod.string(),
+  "totalCredit": zod.string(),
+  "isBalanced": zod.boolean()
+})
+
+
+/**
+ * @summary List accounting periods
+ */
+export const ListAccountingPeriodsParams = zod.object({
+  "companyId": zod.coerce.string().uuid()
+})
+
+export const ListAccountingPeriodsResponse = zod.object({
+  "periods": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "startDate": zod.coerce.date(),
+  "endDate": zod.coerce.date(),
+  "status": zod.enum(['open', 'closed']),
+  "closedAt": zod.coerce.date().nullable()
+}))
+})
+
+
+/**
+ * @summary Create a non-overlapping accounting period
+ */
+export const CreateAccountingPeriodParams = zod.object({
+  "companyId": zod.coerce.string().uuid()
+})
+
+export const createAccountingPeriodBodyNameMax = 120;
+
+
+
+export const CreateAccountingPeriodBody = zod.object({
+  "name": zod.string().min(1).max(createAccountingPeriodBodyNameMax),
+  "startDate": zod.coerce.date(),
+  "endDate": zod.coerce.date()
+})
+
+export const CreateAccountingPeriodResponse = zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "startDate": zod.coerce.date(),
+  "endDate": zod.coerce.date(),
+  "status": zod.enum(['open', 'closed']),
+  "closedAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary Close an accounting period with no draft entries
+ */
+export const CloseAccountingPeriodParams = zod.object({
+  "companyId": zod.coerce.string().uuid(),
+  "periodId": zod.coerce.string().uuid()
+})
+
+export const CloseAccountingPeriodResponse = zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "startDate": zod.coerce.date(),
+  "endDate": zod.coerce.date(),
+  "status": zod.enum(['open', 'closed']),
+  "closedAt": zod.coerce.date().nullable()
 })
 
 

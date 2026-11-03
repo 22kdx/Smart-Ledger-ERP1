@@ -19,6 +19,6 @@ export interface JournalEntryCreate {
      * @nullable
      */
   reference?: string | null;
-  /** @minItems 2 */
+  /** @maxItems 100 */
   lines: JournalLineCreate[];
 }

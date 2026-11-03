@@ -9,6 +9,7 @@ import type { JournalLineCreate } from './journalLineCreate';
 
 export type JournalLine = JournalLineCreate & {
   id: string;
+  lineNumber: number;
   accountCode: string;
   accountName: string;
 };

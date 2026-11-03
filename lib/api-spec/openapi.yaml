@@ -418,6 +418,192 @@ paths:
           description: Company or registered account not found
         "409":
           description: Account is already a member
+  /companies/{companyId}/tax-rules:
+    parameters:
+      - name: companyId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: listCompanyTaxRules
+      tags: [settings]
+      summary: List tax rules configured for a company
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Company tax rules
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [taxRules]
+                properties:
+                  taxRules:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/CompanyTaxRule"
+        "401":
+          description: Missing or invalid access token
+        "403":
+          description: Not a member of this company
+    post:
+      operationId: createCompanyTaxRule
+      tags: [settings]
+      summary: Add a tax rule without applying it to documents
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompanyTaxRuleCreate"
+      responses:
+        "201":
+          description: Tax rule created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompanyTaxRule"
+        "400":
+          description: Invalid tax rule
+        "401":
+          description: Missing or invalid access token
+        "403":
+          description: Insufficient company permission
+  /companies/{companyId}/tax-rules/{taxRuleId}:
+    parameters:
+      - name: companyId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: taxRuleId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    patch:
+      operationId: updateCompanyTaxRule
+      tags: [settings]
+      summary: Update a tax rule's rate or active status
+      description: Configuration only; historical documents are not changed.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompanyTaxRuleUpdate"
+      responses:
+        "200":
+          description: Updated tax rule
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompanyTaxRule"
+        "400":
+          description: Invalid update
+        "401":
+          description: Missing or invalid access token
+        "403":
+          description: Insufficient company permission
+        "404":
+          description: Tax rule not found
+  /companies/{companyId}/exchange-rates:
+    parameters:
+      - name: companyId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: listCompanyExchangeRates
+      tags: [settings]
+      summary: List manually configured company exchange rates
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Company exchange rates
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [exchangeRates]
+                properties:
+                  exchangeRates:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/CompanyExchangeRate"
+        "401":
+          description: Missing or invalid access token
+        "403":
+          description: Not a member of this company
+    post:
+      operationId: createCompanyExchangeRate
+      tags: [settings]
+      summary: Add an exchange rate without converting balances
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompanyExchangeRateCreate"
+      responses:
+        "201":
+          description: Exchange rate created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompanyExchangeRate"
+        "400":
+          description: Invalid exchange rate
+        "401":
+          description: Missing or invalid access token
+        "403":
+          description: Insufficient company permission
+        "409":
+          description: A rate already exists for this currency pair and date
+  /companies/{companyId}/exchange-rates/{exchangeRateId}:
+    parameters:
+      - name: companyId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: exchangeRateId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    delete:
+      operationId: deleteCompanyExchangeRate
+      tags: [settings]
+      summary: Remove an unused configured exchange rate
+      description: Exchange rates are not yet applied to invoices, entries, or balances.
+      security:
+        - bearerAuth: []
+      responses:
+        "204":
+          description: Exchange rate removed
+        "401":
+          description: Missing or invalid access token
+        "403":
+          description: Insufficient company permission
+        "404":
+          description: Exchange rate not found
 components:
   schemas:
     HealthStatus:
@@ -794,6 +980,86 @@ components:
           items:
             $ref: "#/components/schemas/JournalLine"
       required: [id, entryNumber, entryDate, description, status, lines]
+    CompanyTaxRule:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        rate:
+          type: number
+          minimum: 0
+          maximum: 100
+        countryCode:
+          type: [string, "null"]
+          pattern: "^[A-Z]{2}$"
+        isActive:
+          type: boolean
+      required: [id, name, rate, countryCode, isActive]
+    CompanyTaxRuleCreate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        rate:
+          type: number
+          minimum: 0
+          maximum: 100
+        countryCode:
+          type: [string, "null"]
+          pattern: "^[A-Z]{2}$"
+        isActive:
+          type: boolean
+      required: [name, rate, countryCode, isActive]
+    CompanyTaxRuleUpdate:
+      type: object
+      properties:
+        rate:
+          type: number
+          minimum: 0
+          maximum: 100
+        isActive:
+          type: boolean
+    CompanyExchangeRate:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        fromCurrency:
+          $ref: "#/components/schemas/Currency"
+        toCurrency:
+          $ref: "#/components/schemas/Currency"
+        rate:
+          type: number
+          exclusiveMinimum: 0
+        effectiveDate:
+          type: string
+          format: date
+        source:
+          type: string
+      required: [id, fromCurrency, toCurrency, rate, effectiveDate, source]
+    CompanyExchangeRateCreate:
+      type: object
+      properties:
+        fromCurrency:
+          $ref: "#/components/schemas/Currency"
+        toCurrency:
+          $ref: "#/components/schemas/Currency"
+        rate:
+          type: number
+          exclusiveMinimum: 0
+        effectiveDate:
+          type: string
+          format: date
+        source:
+          type: string
+          maxLength: 120
+      required: [fromCurrency, toCurrency, rate, effectiveDate]
   securitySchemes:
     bearerAuth:
       type: http

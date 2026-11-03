@@ -35,15 +35,22 @@ import type {
   Company,
   CompanyAccess,
   CompanyCreate,
+  CompanyExchangeRate,
+  CompanyExchangeRateCreate,
   CompanyMember,
   CompanyMemberCreate,
   CompanySettings,
   CompanySettingsUpdate,
+  CompanyTaxRule,
+  CompanyTaxRuleCreate,
+  CompanyTaxRuleUpdate,
   HealthStatus,
   JournalEntry,
   JournalEntryCreate,
   ListAccounts200,
   ListCompanies200,
+  ListCompanyExchangeRates200,
+  ListCompanyTaxRules200,
   ListJournalEntries200,
   RefreshTokenInput
 } from './api.schemas';
@@ -1580,5 +1587,554 @@ export const useAddCompanyMember = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getAddCompanyMemberMutationOptions(options), queryClient);
+    }
+
+export const getListCompanyTaxRulesUrl = (companyId: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/tax-rules`
+}
+
+/**
+ * @summary List tax rules configured for a company
+ */
+export const listCompanyTaxRules = async (companyId: string, options?: Parameters<typeof customFetch>[1]): Promise<ListCompanyTaxRules200> => {
+
+  return customFetch<ListCompanyTaxRules200>(getListCompanyTaxRulesUrl(companyId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListCompanyTaxRulesQueryKey = (companyId: string,) => {
+    return [
+    `/api/companies/${companyId}/tax-rules`
+    ] as const;
+    }
+
+
+export const getListCompanyTaxRulesQueryOptions = <TData = Awaited<ReturnType<typeof listCompanyTaxRules>>, TError = ErrorType<void>>(companyId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCompanyTaxRules>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCompanyTaxRulesQueryKey(companyId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCompanyTaxRules>>> = ({ signal }) => listCompanyTaxRules(companyId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: companyId !== null && companyId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCompanyTaxRules>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListCompanyTaxRulesQueryResult = NonNullable<Awaited<ReturnType<typeof listCompanyTaxRules>>>
+export type ListCompanyTaxRulesQueryError = ErrorType<void>
+
+
+export function useListCompanyTaxRules<TData = Awaited<ReturnType<typeof listCompanyTaxRules>>, TError = ErrorType<void>>(
+ companyId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCompanyTaxRules>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listCompanyTaxRules>>,
+          TError,
+          Awaited<ReturnType<typeof listCompanyTaxRules>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListCompanyTaxRules<TData = Awaited<ReturnType<typeof listCompanyTaxRules>>, TError = ErrorType<void>>(
+ companyId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCompanyTaxRules>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listCompanyTaxRules>>,
+          TError,
+          Awaited<ReturnType<typeof listCompanyTaxRules>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListCompanyTaxRules<TData = Awaited<ReturnType<typeof listCompanyTaxRules>>, TError = ErrorType<void>>(
+ companyId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCompanyTaxRules>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary List tax rules configured for a company
+ */
+
+export function useListCompanyTaxRules<TData = Awaited<ReturnType<typeof listCompanyTaxRules>>, TError = ErrorType<void>>(
+ companyId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCompanyTaxRules>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListCompanyTaxRulesQueryOptions(companyId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateCompanyTaxRuleUrl = (companyId: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/tax-rules`
+}
+
+/**
+ * @summary Add a tax rule without applying it to documents
+ */
+export const createCompanyTaxRule = async (companyId: string,
+    companyTaxRuleCreate: CompanyTaxRuleCreate, options?: Parameters<typeof customFetch>[1]): Promise<CompanyTaxRule> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<CompanyTaxRule>(getCreateCompanyTaxRuleUrl(companyId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(companyTaxRuleCreate)
+  }
+);}
+
+
+
+
+
+export const getCreateCompanyTaxRuleMutationKey = () => ['createCompanyTaxRule'] as const;
+
+export const getCreateCompanyTaxRuleMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCompanyTaxRule>>, TError,CreateCompanyTaxRuleMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createCompanyTaxRule>>, TError,CreateCompanyTaxRuleMutationVariables, TContext> => {
+
+const mutationKey = getCreateCompanyTaxRuleMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createCompanyTaxRule>>, CreateCompanyTaxRuleMutationVariables> = (props) => {
+          const {companyId,data} = props ?? {};
+
+          return  createCompanyTaxRule(companyId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateCompanyTaxRuleMutationResult = NonNullable<Awaited<ReturnType<typeof createCompanyTaxRule>>>
+    export type CreateCompanyTaxRuleMutationBody = BodyType<CompanyTaxRuleCreate>
+    export type CreateCompanyTaxRuleMutationError = ErrorType<void>
+    export type CreateCompanyTaxRuleMutationVariables = {companyId: string;data: BodyType<CompanyTaxRuleCreate>}
+
+    /**
+ * @summary Add a tax rule without applying it to documents
+ */
+export const useCreateCompanyTaxRule = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCompanyTaxRule>>, TError,CreateCompanyTaxRuleMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof createCompanyTaxRule>>,
+        TError,
+        CreateCompanyTaxRuleMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateCompanyTaxRuleMutationOptions(options), queryClient);
+    }
+
+export const getUpdateCompanyTaxRuleUrl = (companyId: string,
+    taxRuleId: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/tax-rules/${taxRuleId}`
+}
+
+/**
+ * Configuration only; historical documents are not changed.
+ * @summary Update a tax rule's rate or active status
+ */
+export const updateCompanyTaxRule = async (companyId: string,
+    taxRuleId: string,
+    companyTaxRuleUpdate: CompanyTaxRuleUpdate, options?: Parameters<typeof customFetch>[1]): Promise<CompanyTaxRule> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<CompanyTaxRule>(getUpdateCompanyTaxRuleUrl(companyId,taxRuleId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(companyTaxRuleUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateCompanyTaxRuleMutationKey = () => ['updateCompanyTaxRule'] as const;
+
+export const getUpdateCompanyTaxRuleMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCompanyTaxRule>>, TError,UpdateCompanyTaxRuleMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateCompanyTaxRule>>, TError,UpdateCompanyTaxRuleMutationVariables, TContext> => {
+
+const mutationKey = getUpdateCompanyTaxRuleMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateCompanyTaxRule>>, UpdateCompanyTaxRuleMutationVariables> = (props) => {
+          const {companyId,taxRuleId,data} = props ?? {};
+
+          return  updateCompanyTaxRule(companyId,taxRuleId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateCompanyTaxRuleMutationResult = NonNullable<Awaited<ReturnType<typeof updateCompanyTaxRule>>>
+    export type UpdateCompanyTaxRuleMutationBody = BodyType<CompanyTaxRuleUpdate>
+    export type UpdateCompanyTaxRuleMutationError = ErrorType<void>
+    export type UpdateCompanyTaxRuleMutationVariables = {companyId: string;taxRuleId: string;data: BodyType<CompanyTaxRuleUpdate>}
+
+    /**
+ * @summary Update a tax rule's rate or active status
+ */
+export const useUpdateCompanyTaxRule = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateCompanyTaxRule>>, TError,UpdateCompanyTaxRuleMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateCompanyTaxRule>>,
+        TError,
+        UpdateCompanyTaxRuleMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateCompanyTaxRuleMutationOptions(options), queryClient);
+    }
+
+export const getListCompanyExchangeRatesUrl = (companyId: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/exchange-rates`
+}
+
+/**
+ * @summary List manually configured company exchange rates
+ */
+export const listCompanyExchangeRates = async (companyId: string, options?: Parameters<typeof customFetch>[1]): Promise<ListCompanyExchangeRates200> => {
+
+  return customFetch<ListCompanyExchangeRates200>(getListCompanyExchangeRatesUrl(companyId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListCompanyExchangeRatesQueryKey = (companyId: string,) => {
+    return [
+    `/api/companies/${companyId}/exchange-rates`
+    ] as const;
+    }
+
+
+export const getListCompanyExchangeRatesQueryOptions = <TData = Awaited<ReturnType<typeof listCompanyExchangeRates>>, TError = ErrorType<void>>(companyId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCompanyExchangeRates>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCompanyExchangeRatesQueryKey(companyId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCompanyExchangeRates>>> = ({ signal }) => listCompanyExchangeRates(companyId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: companyId !== null && companyId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCompanyExchangeRates>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListCompanyExchangeRatesQueryResult = NonNullable<Awaited<ReturnType<typeof listCompanyExchangeRates>>>
+export type ListCompanyExchangeRatesQueryError = ErrorType<void>
+
+
+export function useListCompanyExchangeRates<TData = Awaited<ReturnType<typeof listCompanyExchangeRates>>, TError = ErrorType<void>>(
+ companyId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCompanyExchangeRates>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listCompanyExchangeRates>>,
+          TError,
+          Awaited<ReturnType<typeof listCompanyExchangeRates>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListCompanyExchangeRates<TData = Awaited<ReturnType<typeof listCompanyExchangeRates>>, TError = ErrorType<void>>(
+ companyId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCompanyExchangeRates>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listCompanyExchangeRates>>,
+          TError,
+          Awaited<ReturnType<typeof listCompanyExchangeRates>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListCompanyExchangeRates<TData = Awaited<ReturnType<typeof listCompanyExchangeRates>>, TError = ErrorType<void>>(
+ companyId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCompanyExchangeRates>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary List manually configured company exchange rates
+ */
+
+export function useListCompanyExchangeRates<TData = Awaited<ReturnType<typeof listCompanyExchangeRates>>, TError = ErrorType<void>>(
+ companyId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCompanyExchangeRates>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListCompanyExchangeRatesQueryOptions(companyId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateCompanyExchangeRateUrl = (companyId: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/exchange-rates`
+}
+
+/**
+ * @summary Add an exchange rate without converting balances
+ */
+export const createCompanyExchangeRate = async (companyId: string,
+    companyExchangeRateCreate: CompanyExchangeRateCreate, options?: Parameters<typeof customFetch>[1]): Promise<CompanyExchangeRate> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<CompanyExchangeRate>(getCreateCompanyExchangeRateUrl(companyId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(companyExchangeRateCreate)
+  }
+);}
+
+
+
+
+
+export const getCreateCompanyExchangeRateMutationKey = () => ['createCompanyExchangeRate'] as const;
+
+export const getCreateCompanyExchangeRateMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCompanyExchangeRate>>, TError,CreateCompanyExchangeRateMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createCompanyExchangeRate>>, TError,CreateCompanyExchangeRateMutationVariables, TContext> => {
+
+const mutationKey = getCreateCompanyExchangeRateMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createCompanyExchangeRate>>, CreateCompanyExchangeRateMutationVariables> = (props) => {
+          const {companyId,data} = props ?? {};
+
+          return  createCompanyExchangeRate(companyId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateCompanyExchangeRateMutationResult = NonNullable<Awaited<ReturnType<typeof createCompanyExchangeRate>>>
+    export type CreateCompanyExchangeRateMutationBody = BodyType<CompanyExchangeRateCreate>
+    export type CreateCompanyExchangeRateMutationError = ErrorType<void>
+    export type CreateCompanyExchangeRateMutationVariables = {companyId: string;data: BodyType<CompanyExchangeRateCreate>}
+
+    /**
+ * @summary Add an exchange rate without converting balances
+ */
+export const useCreateCompanyExchangeRate = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createCompanyExchangeRate>>, TError,CreateCompanyExchangeRateMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof createCompanyExchangeRate>>,
+        TError,
+        CreateCompanyExchangeRateMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateCompanyExchangeRateMutationOptions(options), queryClient);
+    }
+
+export const getDeleteCompanyExchangeRateUrl = (companyId: string,
+    exchangeRateId: string,) => {
+
+
+
+
+  return `/api/companies/${companyId}/exchange-rates/${exchangeRateId}`
+}
+
+/**
+ * Exchange rates are not yet applied to invoices, entries, or balances.
+ * @summary Remove an unused configured exchange rate
+ */
+export const deleteCompanyExchangeRate = async (companyId: string,
+    exchangeRateId: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteCompanyExchangeRateUrl(companyId,exchangeRateId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteCompanyExchangeRateMutationKey = () => ['deleteCompanyExchangeRate'] as const;
+
+export const getDeleteCompanyExchangeRateMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCompanyExchangeRate>>, TError,DeleteCompanyExchangeRateMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteCompanyExchangeRate>>, TError,DeleteCompanyExchangeRateMutationVariables, TContext> => {
+
+const mutationKey = getDeleteCompanyExchangeRateMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteCompanyExchangeRate>>, DeleteCompanyExchangeRateMutationVariables> = (props) => {
+          const {companyId,exchangeRateId} = props ?? {};
+
+          return  deleteCompanyExchangeRate(companyId,exchangeRateId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteCompanyExchangeRateMutationResult = NonNullable<Awaited<ReturnType<typeof deleteCompanyExchangeRate>>>
+
+    export type DeleteCompanyExchangeRateMutationError = ErrorType<void>
+    export type DeleteCompanyExchangeRateMutationVariables = {companyId: string;exchangeRateId: string}
+
+    /**
+ * @summary Remove an unused configured exchange rate
+ */
+export const useDeleteCompanyExchangeRate = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteCompanyExchangeRate>>, TError,DeleteCompanyExchangeRateMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof deleteCompanyExchangeRate>>,
+        TError,
+        DeleteCompanyExchangeRateMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteCompanyExchangeRateMutationOptions(options), queryClient);
     }
 

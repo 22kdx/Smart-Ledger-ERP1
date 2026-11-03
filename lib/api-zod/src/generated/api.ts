@@ -482,3 +482,174 @@ export const AddCompanyMemberResponse = zod.object({
 })
 
 
+/**
+ * @summary List tax rules configured for a company
+ */
+export const ListCompanyTaxRulesParams = zod.object({
+  "companyId": zod.coerce.string().uuid()
+})
+
+export const listCompanyTaxRulesResponseTaxRulesItemRateMin = 0;
+export const listCompanyTaxRulesResponseTaxRulesItemRateMax = 100;
+
+export const listCompanyTaxRulesResponseTaxRulesItemCountryCodeRegExp = new RegExp('^[A-Z]{2}$');
+
+
+export const ListCompanyTaxRulesResponse = zod.object({
+  "taxRules": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "rate": zod.number().min(listCompanyTaxRulesResponseTaxRulesItemRateMin).max(listCompanyTaxRulesResponseTaxRulesItemRateMax),
+  "countryCode": zod.string().regex(listCompanyTaxRulesResponseTaxRulesItemCountryCodeRegExp).nullable(),
+  "isActive": zod.boolean()
+}))
+})
+
+
+/**
+ * @summary Add a tax rule without applying it to documents
+ */
+export const CreateCompanyTaxRuleParams = zod.object({
+  "companyId": zod.coerce.string().uuid()
+})
+
+export const createCompanyTaxRuleBodyNameMax = 120;
+
+export const createCompanyTaxRuleBodyRateMin = 0;
+export const createCompanyTaxRuleBodyRateMax = 100;
+
+export const createCompanyTaxRuleBodyCountryCodeRegExp = new RegExp('^[A-Z]{2}$');
+
+
+export const CreateCompanyTaxRuleBody = zod.object({
+  "name": zod.string().min(1).max(createCompanyTaxRuleBodyNameMax),
+  "rate": zod.number().min(createCompanyTaxRuleBodyRateMin).max(createCompanyTaxRuleBodyRateMax),
+  "countryCode": zod.string().regex(createCompanyTaxRuleBodyCountryCodeRegExp).nullable(),
+  "isActive": zod.boolean()
+})
+
+export const createCompanyTaxRuleResponseRateMin = 0;
+export const createCompanyTaxRuleResponseRateMax = 100;
+
+export const createCompanyTaxRuleResponseCountryCodeRegExp = new RegExp('^[A-Z]{2}$');
+
+
+export const CreateCompanyTaxRuleResponse = zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "rate": zod.number().min(createCompanyTaxRuleResponseRateMin).max(createCompanyTaxRuleResponseRateMax),
+  "countryCode": zod.string().regex(createCompanyTaxRuleResponseCountryCodeRegExp).nullable(),
+  "isActive": zod.boolean()
+})
+
+
+/**
+ * Configuration only; historical documents are not changed.
+ * @summary Update a tax rule's rate or active status
+ */
+export const UpdateCompanyTaxRuleParams = zod.object({
+  "companyId": zod.coerce.string().uuid(),
+  "taxRuleId": zod.coerce.string().uuid()
+})
+
+export const updateCompanyTaxRuleBodyRateMin = 0;
+export const updateCompanyTaxRuleBodyRateMax = 100;
+
+
+
+export const UpdateCompanyTaxRuleBody = zod.object({
+  "rate": zod.number().min(updateCompanyTaxRuleBodyRateMin).max(updateCompanyTaxRuleBodyRateMax).optional(),
+  "isActive": zod.boolean().optional()
+})
+
+export const updateCompanyTaxRuleResponseRateMin = 0;
+export const updateCompanyTaxRuleResponseRateMax = 100;
+
+export const updateCompanyTaxRuleResponseCountryCodeRegExp = new RegExp('^[A-Z]{2}$');
+
+
+export const UpdateCompanyTaxRuleResponse = zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "rate": zod.number().min(updateCompanyTaxRuleResponseRateMin).max(updateCompanyTaxRuleResponseRateMax),
+  "countryCode": zod.string().regex(updateCompanyTaxRuleResponseCountryCodeRegExp).nullable(),
+  "isActive": zod.boolean()
+})
+
+
+/**
+ * @summary List manually configured company exchange rates
+ */
+export const ListCompanyExchangeRatesParams = zod.object({
+  "companyId": zod.coerce.string().uuid()
+})
+
+export const listCompanyExchangeRatesResponseExchangeRatesItemFromCurrencyRegExp = new RegExp('^[A-Z]{3}$');
+export const listCompanyExchangeRatesResponseExchangeRatesItemToCurrencyRegExp = new RegExp('^[A-Z]{3}$');
+export const listCompanyExchangeRatesResponseExchangeRatesItemRateExclusiveMin = 0;
+
+
+
+export const ListCompanyExchangeRatesResponse = zod.object({
+  "exchangeRates": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "fromCurrency": zod.string().regex(listCompanyExchangeRatesResponseExchangeRatesItemFromCurrencyRegExp).describe('رمز عملة من ثلاثة أحرف، وتُحدد العملات المتاحة لكل منشأة من إعداداتها.'),
+  "toCurrency": zod.string().regex(listCompanyExchangeRatesResponseExchangeRatesItemToCurrencyRegExp).describe('رمز عملة من ثلاثة أحرف، وتُحدد العملات المتاحة لكل منشأة من إعداداتها.'),
+  "rate": zod.number().gt(listCompanyExchangeRatesResponseExchangeRatesItemRateExclusiveMin),
+  "effectiveDate": zod.coerce.date(),
+  "source": zod.string()
+}))
+})
+
+
+/**
+ * @summary Add an exchange rate without converting balances
+ */
+export const CreateCompanyExchangeRateParams = zod.object({
+  "companyId": zod.coerce.string().uuid()
+})
+
+export const createCompanyExchangeRateBodyFromCurrencyRegExp = new RegExp('^[A-Z]{3}$');
+export const createCompanyExchangeRateBodyToCurrencyRegExp = new RegExp('^[A-Z]{3}$');
+export const createCompanyExchangeRateBodyRateExclusiveMin = 0;
+
+export const createCompanyExchangeRateBodySourceMax = 120;
+
+
+
+export const CreateCompanyExchangeRateBody = zod.object({
+  "fromCurrency": zod.string().regex(createCompanyExchangeRateBodyFromCurrencyRegExp).describe('رمز عملة من ثلاثة أحرف، وتُحدد العملات المتاحة لكل منشأة من إعداداتها.'),
+  "toCurrency": zod.string().regex(createCompanyExchangeRateBodyToCurrencyRegExp).describe('رمز عملة من ثلاثة أحرف، وتُحدد العملات المتاحة لكل منشأة من إعداداتها.'),
+  "rate": zod.number().gt(createCompanyExchangeRateBodyRateExclusiveMin),
+  "effectiveDate": zod.coerce.date(),
+  "source": zod.string().max(createCompanyExchangeRateBodySourceMax).optional()
+})
+
+export const createCompanyExchangeRateResponseFromCurrencyRegExp = new RegExp('^[A-Z]{3}$');
+export const createCompanyExchangeRateResponseToCurrencyRegExp = new RegExp('^[A-Z]{3}$');
+export const createCompanyExchangeRateResponseRateExclusiveMin = 0;
+
+
+
+export const CreateCompanyExchangeRateResponse = zod.object({
+  "id": zod.string().uuid(),
+  "fromCurrency": zod.string().regex(createCompanyExchangeRateResponseFromCurrencyRegExp).describe('رمز عملة من ثلاثة أحرف، وتُحدد العملات المتاحة لكل منشأة من إعداداتها.'),
+  "toCurrency": zod.string().regex(createCompanyExchangeRateResponseToCurrencyRegExp).describe('رمز عملة من ثلاثة أحرف، وتُحدد العملات المتاحة لكل منشأة من إعداداتها.'),
+  "rate": zod.number().gt(createCompanyExchangeRateResponseRateExclusiveMin),
+  "effectiveDate": zod.coerce.date(),
+  "source": zod.string()
+})
+
+
+/**
+ * Exchange rates are not yet applied to invoices, entries, or balances.
+ * @summary Remove an unused configured exchange rate
+ */
+export const DeleteCompanyExchangeRateParams = zod.object({
+  "companyId": zod.coerce.string().uuid(),
+  "exchangeRateId": zod.coerce.string().uuid()
+})
+
+export const DeleteCompanyExchangeRateResponse = zod.void()
+
+

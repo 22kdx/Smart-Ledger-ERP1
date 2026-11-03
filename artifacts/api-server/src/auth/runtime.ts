@@ -4,12 +4,15 @@ import { PostgresAuthRepository } from "./postgres-repository";
 import { logger } from "../lib/logger";
 import { CompanySettingsService } from "../settings/service";
 import { PostgresCompanySettingsRepository } from "../settings/postgres-repository";
+import { CompanyBusinessSettingsService } from "../settings/business-service";
+import { PostgresCompanyBusinessSettingsRepository } from "../settings/business-postgres-repository";
 
 const { Pool } = pg;
 
 export type AuthRuntime = {
   service: AuthService | null;
   companySettingsService: CompanySettingsService | null;
+  companyBusinessSettingsService: CompanyBusinessSettingsService | null;
   close: () => Promise<void>;
 };
 
@@ -28,6 +31,7 @@ export function createAuthRuntime(): AuthRuntime {
     return {
       service: null,
       companySettingsService: null,
+      companyBusinessSettingsService: null,
       close: async () => undefined,
     };
   }
@@ -51,10 +55,14 @@ export function createAuthRuntime(): AuthRuntime {
   const companySettingsService = new CompanySettingsService(
     new PostgresCompanySettingsRepository(pool),
   );
+  const companyBusinessSettingsService = new CompanyBusinessSettingsService(
+    new PostgresCompanyBusinessSettingsRepository(pool),
+  );
 
   return {
     service,
     companySettingsService,
+    companyBusinessSettingsService,
     close: async () => {
       await pool.end();
     },

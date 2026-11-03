@@ -4,6 +4,8 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 import pg from "pg";
+import { CompanyBusinessSettingsService } from "./business-service";
+import { PostgresCompanyBusinessSettingsRepository } from "./business-postgres-repository";
 import { PostgresCompanySettingsRepository } from "./postgres-repository";
 import { CompanySettingsError } from "./types";
 
@@ -98,6 +100,14 @@ test("PostgreSQL company settings migration and repository preserve existing val
   );
   const migration = await readFile(migrationPath, "utf8");
   await pool.query(migration);
+  const businessMigrationPath = fileURLToPath(
+    new URL(
+      "../../../../lib/db/migrations/0003_company_business_settings.sql",
+      import.meta.url,
+    ),
+  );
+  const businessMigration = await readFile(businessMigrationPath, "utf8");
+  await pool.query(businessMigration);
 
   const repository = new PostgresCompanySettingsRepository(pool);
   const beforeUpdate = await repository.get(companyId);
@@ -155,4 +165,53 @@ test("PostgreSQL company settings migration and repository preserve existing val
   );
   assert.equal(preservedLegacyValues.rows[0].tax_rate, null);
   assert.equal(preservedLegacyValues.rows[0].base_currency, "YER");
+
+  const businessRepository = new PostgresCompanyBusinessSettingsRepository(pool);
+  const businessSettings = new CompanyBusinessSettingsService(businessRepository);
+  const taxRule = await businessSettings.createTaxRule(companyId, {
+    name: "  إعداد ضريبة تجريبي  ",
+    rate: 15,
+    countryCode: "sa",
+    isActive: true,
+  });
+  assert.equal(taxRule.name, "إعداد ضريبة تجريبي");
+  assert.equal(taxRule.countryCode, "SA");
+  assert.deepEqual(await businessSettings.listTaxRules(randomUUID()), []);
+
+  const updatedTaxRule = await businessSettings.updateTaxRule(
+    companyId,
+    taxRule.id,
+    { rate: 8.5, isActive: false },
+  );
+  assert.equal(updatedTaxRule?.rate, 8.5);
+  assert.equal(updatedTaxRule?.isActive, false);
+
+  const exchangeRateInput = {
+    fromCurrency: "SAR",
+    toCurrency: "YER",
+    rate: 140.125,
+    effectiveDate: "2026-11-03",
+    source: "اختبار",
+  };
+  const exchangeRate = await businessSettings.createExchangeRate(
+    companyId,
+    exchangeRateInput,
+  );
+  assert.equal(exchangeRate.rate, 140.125);
+  assert.equal(exchangeRate.effectiveDate, "2026-11-03");
+  assert.deepEqual(
+    await businessSettings.listExchangeRates(randomUUID()),
+    [],
+  );
+  await assert.rejects(
+    businessSettings.createExchangeRate(companyId, exchangeRateInput),
+    (error: unknown) =>
+      error instanceof Error &&
+      "statusCode" in error &&
+      error.statusCode === 409,
+  );
+  assert.equal(
+    await businessSettings.deleteExchangeRate(companyId, exchangeRate.id),
+    true,
+  );
 });

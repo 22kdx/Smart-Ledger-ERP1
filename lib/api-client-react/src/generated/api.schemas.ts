@@ -378,6 +378,70 @@ export interface JournalEntry {
   lines: JournalLine[];
 }
 
+export interface CompanyTaxRule {
+  id: string;
+  name: string;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  rate: number;
+  /**
+     * @nullable
+     * @pattern ^[A-Z]{2}$
+     */
+  countryCode: string | null;
+  isActive: boolean;
+}
+
+export interface CompanyTaxRuleCreate {
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  name: string;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  rate: number;
+  /**
+     * @nullable
+     * @pattern ^[A-Z]{2}$
+     */
+  countryCode: string | null;
+  isActive: boolean;
+}
+
+export interface CompanyTaxRuleUpdate {
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  rate?: number;
+  isActive?: boolean;
+}
+
+export interface CompanyExchangeRate {
+  id: string;
+  fromCurrency: Currency;
+  toCurrency: Currency;
+  /** @exclusiveMinimum 0 */
+  rate: number;
+  effectiveDate: string;
+  source: string;
+}
+
+export interface CompanyExchangeRateCreate {
+  fromCurrency: Currency;
+  toCurrency: Currency;
+  /** @exclusiveMinimum 0 */
+  rate: number;
+  effectiveDate: string;
+  /** @maxLength 120 */
+  source?: string;
+}
+
 export type ListCompanies200 = {
   companies: Company[];
 };
@@ -388,5 +452,13 @@ export type ListAccounts200 = {
 
 export type ListJournalEntries200 = {
   entries: JournalEntry[];
+};
+
+export type ListCompanyTaxRules200 = {
+  taxRules: CompanyTaxRule[];
+};
+
+export type ListCompanyExchangeRates200 = {
+  exchangeRates: CompanyExchangeRate[];
 };
 
